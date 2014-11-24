@@ -67,14 +67,17 @@ type
   protected
     function GetPivateKey: TStrings;
     function GetPublicKey: TStrings;
+    procedure SetPrivateKey(AStrings: TStrings);
+    procedure SetPublicKey(AStrings: TStrings);
+
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
-    function ValidateSettings: Boolean;
+    function ValidateSettings: Boolean; virtual;
   published
     property AppName: string read FAppName write FAppName;
-    property PrivateKey: TStrings read GetPivateKey;
-    property PublicKey: TStrings read GetPublicKey;
+    property PrivateKey: TStrings read GetPivateKey write SetPrivateKey;
+    property PublicKey: TStrings read GetPublicKey write SetPublicKey;
     property ConsumerKey: string read FConsumerKey write FConsumerKey;
     property ConsumerSecret: string read FConsumerSecret write FConsumerSecret;
     property OAuthSignatureMethod: TOAuthSignatureMethod
@@ -114,8 +117,9 @@ type
       const aMethod: string; const AURL: string; const AParams: TStringList;
       const AConsumerKey: string; const AToken: string;
       const APrivateKey: string); overload;
-    procedure ValidateSettings;
+    procedure ValidateSettings; virtual;
     function Get(AURL: string; AParams: string; var AResponse: string;
+      ALastModified: TDateTime = 0;
       AResponseType: TResponseType = rtXML): Boolean;
   public
     constructor Create(AOwner: TComponent); override;
@@ -128,7 +132,7 @@ type
   end;
 
 type
-  TXEROResponseBase = class(TObject)
+  TXEROResponseBase = class(TComponent)
   private
     FResponse: string;
     FResult: Boolean;
@@ -140,7 +144,7 @@ type
       AErrorMessage: string = '');
     property ResponseType: TResponseType read FResponseType write FResponseType;
   public
-    constructor Create; reintroduce;
+    constructor Create(AOwner: TComponent); override;
     function AsString: string;
     property Result: Boolean read FResult;
     property ErrorMessage: string read FErrorMessage;
@@ -150,54 +154,65 @@ type
   TXEROResponseBaseClass = class of TXEROResponseBase;
 
 type
-  TXEROResponseText = class(TXEROResponseBase)
-  public
-    property ResponseType;
-  end;
-
-type
   TXEROAPI = class(TXEROAPIBase)
   private
     FXEROResponseBase: TXEROResponseBase;
-    FXEROResponseBaseClass: TXEROResponseBaseClass;
     function GetAPIURL: string; virtual; abstract;
-    procedure SetXEROResponseBaseClass(AXEROResponseBaseClass
-      : TXEROResponseBaseClass);
-    function GetXEROResponseBaseClass: TXEROResponseBaseClass;
   protected
-    function Get(AParams: string; var AResponse: string): Boolean; reintroduce;
+    procedure ValidateSettings; override;
+    function GetDateTimeFilterString(ADateTime: TDateTime): string;
   public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
-    function Find: Boolean;
-    property ResponseClass: TXEROResponseBaseClass read GetXEROResponseBaseClass
-      write SetXEROResponseBaseClass;
+    function Find(AFilter: string = ''; AOrderBy: string = '';
+      APage: integer = 0; ALastModified: TDateTime = 0): Boolean;
+  published
     property Response: TXEROResponseBase read FXEROResponseBase
       write FXEROResponseBase;
-  published
+
   end;
+
+  // Invoice Status
+  // ---
+  // DRAFT	A Draft Invoice (default)
+  // SUBMITTED	An Awaiting Approval Invoice
+  // DELETED	A Deleted Invoice
+  // AUTHORISED	An Invoice that is Approved and Awaiting Payment OR partially paid
+  // PAID	An Invoice that is completely Paid
+  // VOIDED	A Voided Invoice
+type
+  TXEROInvoiceStatus = (isUnspecified, isDraft, isSubmitted, isDeleted,
+    isAuthorised, isPaid, isVoided);
+
+  // Invoice Type
+  // ---
+  // ACCPAY	A bill – commonly known as a Accounts Payable or supplier invoice
+  // ACCREC	A sales invoice – commonly known as an Accounts Receivable or customer invoice
+type
+  TXEROInvoiceType = (itUnspecified, itAccPay, itAccRec);
 
 type
   TXEROInvoices = class(TXEROAPI)
   private
     function GetAPIURL: string; override;
   protected
+    function GetInvoiceStatus(AInvoiceStatus: TXEROInvoiceStatus): string;
+    function GetInvoiceType(AInvoiceType: TXEROInvoiceType): string;
   public
-
+    function Find(APage: integer = 0; AOrderBy: string = '';
+      AInvoiceType: TXEROInvoiceType = itUnspecified;
+      AInvoiceStatus: TXEROInvoiceStatus = isUnspecified;
+      AInvoiceID: string = ''; AInvoiceNumber: string = '';
+      AReference: string = ''; ADate: TDateTime = 0; ADueDate: TDateTime = 0;
+      ALastModified: TDateTime = 0): Boolean; overload;
+    function GetDateRange(AStartDate: TDateTime; AEndDate: TDateTime;
+      APage: integer = 0;
+      AInvoiceType: TXEROInvoiceType = itUnspecified): Boolean;
   published
   end;
 
 implementation
 
-uses
-  Windows,
-  IdGlobal,
-  IdHMACSHA1,
-  XERO.HugeInt,
-  XERO.Base64,
-  XERO.RSAUtils,
-  XERO.Utils,
-  IdBaseComponent, IdComponent, IdTCPConnection,
+uses Windows, IdGlobal, IdHMACSHA1, IdURI, XERO.HugeInt, XERO.Base64,
+  XERO.RSAUtils, XERO.Utils, IdBaseComponent, IdComponent, IdTCPConnection,
   IdTCPClient, IdIOHandler, IdIOHandlerSocket, IdIOHandlerStack, IdSSL,
   IdSSLOpenSSL;
 
@@ -216,6 +231,16 @@ end;
 function TXEROAppDetails.GetPublicKey: TStrings;
 begin
   Result := FPublicKey;
+end;
+
+procedure TXEROAppDetails.SetPrivateKey(AStrings: TStrings);
+begin
+  FPrivateKey.Assign(AStrings);
+end;
+
+procedure TXEROAppDetails.SetPublicKey(AStrings: TStrings);
+begin
+  FPublicKey.Assign(AStrings);
 end;
 
 constructor TXEROAppDetails.Create(AOwner: TComponent);
@@ -277,7 +302,7 @@ end;
 
 function TXEROAPIBase.NormalisedURL(const AURL: string): string;
 var
-  i: Integer;
+  i: integer;
 begin
   Result := AURL;
 
@@ -302,35 +327,8 @@ end;
 function TXEROAPIBase.OAuthBaseString(const aMethod: string; const AURL: string;
   const AParams: TStrings): string;
 
-  function URLDecode(const aString: string): string;
-  var
-    i: Integer;
-    b: Byte;
-  begin
-    Result := '';
-
-    i := 1;
-    while (i <= Length(aString)) do
-    begin
-      if (aString[i] = '%') then
-      begin
-        try
-          b := Byte(StrToInt('$' + Copy(aString, i + 1, 2)));
-          Result := Result + ANSIChar(b);
-          Inc(i, 2);
-        except
-          EXIT;
-        end;
-      end
-      else
-        Result := Result + aString[i];
-
-      Inc(i);
-    end;
-  end;
-
 var
-  i, idx: Integer;
+  i, idx: integer;
   params: TStringList;
   s: string;
   url: string;
@@ -413,7 +411,7 @@ end;
 { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
 function TXEROAPIBase.OAuthEncode(const aString: string): string;
 var
-  i: Integer;
+  i: integer;
 begin
   Result := '';
 
@@ -459,7 +457,7 @@ end;
 function TXEROAPIBase.OAuthSignature(const aBaseString: string;
   const aConsumerSecret: string; const aTokenSecret: string): string;
 var
-  i: Integer;
+  i: integer;
   key: string;
   hmac: TIdHMACSHA1;
   hash: TIdBytes;
@@ -488,7 +486,7 @@ var
   local: TSystemTime;
   gmt: TSystemTime;
   dt: TDateTime;
-  ts: Integer;
+  ts: integer;
 begin
   DateTimeToSystemTime(Now, local);
 
@@ -505,7 +503,7 @@ procedure TXEROAPIBase.OAuthSignRequest(const aRequest: TIdHTTPRequest;
   const AConsumerKey: string; const AToken: string;
   const aConsumerSecret: string; const aTokenSecret: string);
 var
-  i: Integer;
+  i: integer;
   s: string;
   sig: string;
   timestamp: string;
@@ -582,7 +580,7 @@ procedure TXEROAPIBase.OAuthSignRequest(const aRequest: TIdHTTPRequest;
   const aMethod: string; const AURL: string; const AParams: TStringList;
   const AConsumerKey: string; const AToken: string; const APrivateKey: string);
 var
-  i: Integer;
+  i: integer;
   s: string;
   timestamp: string;
   nonce: string;
@@ -611,11 +609,12 @@ begin
     params.Values['oauth_timestamp'] := timestamp;
     params.Values['oauth_signature_method'] := 'RSA-SHA1';
     params.Values['oauth_version'] := '1.0';
-
     // Derive and sign the base string for the specified, Method, URL and Combined Params
 
     url := NormalisedURL(AURL);
+
     s := OAuthBaseString(aMethod, url, params);
+
     s := OAuthSignature(s, APrivateKey);
 
     // Remove any params from the URL that we will include as the REALM in the Authorization header
@@ -661,7 +660,7 @@ begin
 end;
 
 function TXEROAPIBase.Get(AURL: string; AParams: string; var AResponse: string;
-  AResponseType: TResponseType = rtXML): Boolean;
+  ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML): Boolean;
 var
   HTTPClient: TIdHTTP;
   IdSSLIOHandlerSocketOpenSSL: TIdSSLIOHandlerSocketOpenSSL;
@@ -708,9 +707,14 @@ begin
           end;
       end;
 
-      Log(Format('URL: %s, Headers: %s, Accept: ',
-        [AURL, HTTPClient.Request.CustomHeaders.Text,
-        HTTPClient.Request.Accept]));
+      if ALastModified <> 0 then
+      begin
+        HTTPClient.Request.LastModified := ALastModified;
+      end;
+
+      Log(Format('URL: %s, Headers: %s, Accept: %s, Last Modified %s',
+        [AURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept,
+        DateTimeToStr(HTTPClient.Request.LastModified)]));
 
       HTTPClient.Get(AURL, HTTPStream);
 
@@ -723,7 +727,13 @@ begin
     except
       on E: Exception do
       begin
-        AResponse := Format('ERROR: %s', [E.Message]);
+        try
+          HTTPStream.Position := 0;
+          AResponse := HTTPStream.ReadString(HTTPStream.Size);
+        except
+
+        end;
+        AResponse := Format('ERROR: %s (%s)', [E.Message, AResponse]);
       end;
     end;
 
@@ -759,9 +769,9 @@ begin
   Result := rtXML;
 end;
 
-constructor TXEROResponseBase.Create;
+constructor TXEROResponseBase.Create(AOwner: TComponent);
 begin
-  inherited;
+  inherited Create(AOwner);
   FResponseType := GetDefaultResponseType;
   FResponse := '';
   FResult := False;
@@ -770,54 +780,65 @@ end;
 
 // TXEROAPI
 
-constructor TXEROAPI.Create(AOwner: TComponent);
+procedure TXEROAPI.ValidateSettings;
 begin
-  inherited Create(AOwner);
-  SetXEROResponseBaseClass(FXEROResponseBaseClass);
-end;
-
-destructor TXEROAPI.Destroy;
-begin
-  SetXEROResponseBaseClass(nil);
-  inherited Destroy;
-end;
-
-procedure TXEROAPI.SetXEROResponseBaseClass(AXEROResponseBaseClass
-  : TXEROResponseBaseClass);
-begin
-  if Assigned(FXEROResponseBase) then
-    FreeAndNil(FXEROResponseBase);
-  FXEROResponseBaseClass := AXEROResponseBaseClass;
-  if FXEROResponseBaseClass <> nil then
+  inherited ValidateSettings;
+  if not Assigned(FXEROResponseBase) then
   begin
-    FXEROResponseBase := FXEROResponseBaseClass.Create;
+    raise EXEROException.Create('Response has not been assigned.');
   end;
 end;
 
-function TXEROAPI.GetXEROResponseBaseClass: TXEROResponseBaseClass;
-begin
-  Result := FXEROResponseBaseClass;
-end;
-
-function TXEROAPI.Get(AParams: string; var AResponse: string): Boolean;
-begin
-  Result := inherited Get(GetAPIURL, AParams, AResponse,
-    FXEROResponseBase.ResponseType);
-end;
-
-function TXEROAPI.Find: Boolean;
+function TXEROAPI.GetDateTimeFilterString(ADateTime: TDateTime): string;
 var
-  params: string;
-  Response: string;
+  Year, Month, Day: Word;
 begin
-  Result := Get(params, Response);
-  if Result then
+  if ADateTime <> 0 then
   begin
-    FXEROResponseBase.SetResponse(Response);
+    DecodeDate(ADateTime, Year, Month, Day);
+    Result := Format('DateTime(%d,%d,%d)', [Year, Month, Day]);
   end
   else
   begin
-    FXEROResponseBase.SetResponse('', False, Response);
+    Result := '';
+  end;
+end;
+
+function TXEROAPI.Find(AFilter: string = ''; AOrderBy: string = '';
+  APage: integer = 0; ALastModified: TDateTime = 0): Boolean;
+var
+  url: string;
+  params: string;
+  ResponseData: string;
+
+begin
+  ValidateSettings;
+
+  url := GetAPIURL;
+
+  if not IsEmptyString(AFilter) then
+  begin
+    url := url + GetURLSeperator(url) + 'where=' + URLEncode(AFilter);
+  end;
+  if not IsEmptyString(AOrderBy) then
+  begin
+    url := url + GetURLSeperator(url) + 'order=' + URLEncode(AOrderBy);
+  end;
+  if APage > 0 then
+  begin
+    url := url + GetURLSeperator(url) + 'page=' + IntToStr(APage);
+  end;
+
+  Result := Get(url, params, ResponseData, ALastModified,
+    FXEROResponseBase.ResponseType);
+
+  if Result then
+  begin
+    FXEROResponseBase.SetResponse(ResponseData);
+  end
+  else
+  begin
+    FXEROResponseBase.SetResponse('', False, ResponseData);
   end;
 end;
 
@@ -826,6 +847,116 @@ end;
 function TXEROInvoices.GetAPIURL: string;
 begin
   Result := XERO_API_BASE_URL + 'Invoices';
+end;
+
+function TXEROInvoices.GetInvoiceStatus(AInvoiceStatus
+  : TXEROInvoiceStatus): string;
+begin
+  case AInvoiceStatus of
+    isUnspecified:
+      Result := '';
+    isDraft:
+      Result := 'DRAFT';
+    isSubmitted:
+      Result := 'SUBMITTED';
+    isDeleted:
+      Result := 'DELETED';
+    isAuthorised:
+      Result := 'AUTHORISED';
+    isPaid:
+      Result := 'PAID';
+    isVoided:
+      Result := 'VOIDED';
+  end;
+end;
+
+function TXEROInvoices.GetInvoiceType(AInvoiceType: TXEROInvoiceType): string;
+begin
+  case AInvoiceType of
+    itUnspecified:
+      Result := '';
+    itAccPay:
+      Result := 'ACCPAY';
+    itAccRec:
+      Result := 'ACCREC';
+  end;
+end;
+
+function TXEROInvoices.Find(APage: integer = 0; AOrderBy: string = '';
+  AInvoiceType: TXEROInvoiceType = itUnspecified;
+  AInvoiceStatus: TXEROInvoiceStatus = isUnspecified; AInvoiceID: string = '';
+  AInvoiceNumber: string = ''; AReference: string = ''; ADate: TDateTime = 0;
+  ADueDate: TDateTime = 0; ALastModified: TDateTime = 0): Boolean;
+var
+  Filter: string;
+  InvoiceStatus, InvoiceType, InvoiceDueDate, InvoiceDate: string;
+
+  procedure AddToFilter(AFieldName: string; AData: string;
+    AQuoteData: Boolean = true);
+  var
+    Data: string;
+  begin
+    if AQuoteData then
+    begin
+      Data := '"' + AData + '"';
+    end
+    else
+    begin
+      Data := AData;
+    end;
+    if not IsEmptyString(AData) then
+    begin
+      if not IsEmptyString(Filter) then
+      begin
+        Filter := Filter + ' AND ';
+      end;
+      Filter := Filter + AFieldName + '==' + Data;
+    end;
+  end;
+
+begin
+  Filter := '';
+  InvoiceStatus := GetInvoiceStatus(AInvoiceStatus);
+  InvoiceType := GetInvoiceType(AInvoiceType);
+  InvoiceDueDate := GetDateTimeFilterString(ADueDate);
+  InvoiceDate := GetDateTimeFilterString(ADate);
+  AddToFilter('Status', InvoiceStatus);
+  AddToFilter('Type', InvoiceType);
+  AddToFilter('InvoiceID', AInvoiceID);
+  AddToFilter('InvoiceNumber', AInvoiceNumber);
+  AddToFilter('Reference', AReference);
+  AddToFilter('DueDate', InvoiceDueDate, False);
+  AddToFilter('Date', InvoiceDate, False);
+  Debug('Find', Format('Filter: %s', [Filter]));
+  Result := Find(Filter, AOrderBy, APage, ALastModified);
+end;
+
+function TXEROInvoices.GetDateRange(AStartDate: TDateTime; AEndDate: TDateTime;
+  APage: integer = 0; AInvoiceType: TXEROInvoiceType = itUnspecified): Boolean;
+var
+  Filter: string;
+  InvoiceType: string;
+  StartDate, EndDate: string;
+
+begin
+  Filter := '';
+  InvoiceType := GetInvoiceType(AInvoiceType);
+  StartDate := GetDateTimeFilterString(AStartDate);
+  EndDate := GetDateTimeFilterString(AEndDate);
+  if not IsEmptyString(InvoiceType) then
+  begin
+    Filter := Filter + 'Type=="' + InvoiceType + '"';
+  end;
+
+  if not IsEmptyString(Filter) then
+  begin
+    Filter := Filter + ' AND ';
+  end;
+
+  Filter := Filter + 'Date>=' + StartDate + ' AND Date <= ' + EndDate;
+  Debug('GetDateRange', Format('Filter: %s', [Filter]));
+  Result := Find(Filter, 'Date ASC', APage);
+
 end;
 
 end.
