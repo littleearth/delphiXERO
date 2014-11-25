@@ -74,29 +74,29 @@
         <DCC_K>false</DCC_K>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Android)'!=''">
-        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;xmlrtl;inet;soaprtl;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_iOSDevice)'!=''">
-        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;xmlrtl;inet;soaprtl;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_iOSSimulator)'!=''">
-        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;xmlrtl;inet;soaprtl;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_CBuilderOutput>None</DCC_CBuilderOutput>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_OSX32)'!=''">
-        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;xmlrtl;inet;soaprtl;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
-        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;xmlrtl;inet;soaprtl;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>rtl;IndySystem;IndyProtocols;IndyCore;dbrtl;dsnap;xmlrtl;inet;soaprtl;$(DCC_UsePackage)</DCC_UsePackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -125,6 +125,9 @@
         <DCCReference Include="IndyCore.dcp"/>
         <DCCReference Include="dbrtl.dcp"/>
         <DCCReference Include="dsnap.dcp"/>
+        <DCCReference Include="xmlrtl.dcp"/>
+        <DCCReference Include="inet.dcp"/>
+        <DCCReference Include="soaprtl.dcp"/>
         <DCCReference Include="..\source\XERO.API.pas"/>
         <DCCReference Include="..\source\XERO.Base64.pas"/>
         <DCCReference Include="..\source\XERO.CipherRSA.pas"/>
@@ -140,6 +143,9 @@
         <DCCReference Include="..\source\XEROComponentRegister.pas"/>
         <DCCReference Include="..\source\XERO.API.Response.ClientDataset.pas"/>
         <DCCReference Include="..\source\XERO.API.Response.Text.pas"/>
+        <DCCReference Include="..\source\XERO.API.Invoices.pas"/>
+        <DCCReference Include="..\source\XERO.ISO8601.pas"/>
+        <DCCReference Include="..\source\XERO.XMLParser.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

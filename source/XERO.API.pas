@@ -90,12 +90,12 @@ type
     FLogLevel: TLogLevel;
     FOnLog: TOnLog;
     FXEROAppDetails: TXEROAppDetails;
+  protected
     procedure Log(AMessage: string);
     procedure Debug(AProcedure: string; AMessage: string);
     procedure Error(AMessage: string); overload;
     procedure Error(AException: Exception); overload;
     procedure Warning(AMessage: string);
-  protected
     function NormalisedURL(const AURL: string): string;
     function GetGUIDString: string;
     function OAuthBaseString(const aMethod: string; const AURL: string;
@@ -121,13 +121,15 @@ type
     function Get(AURL: string; AParams: string; var AResponse: string;
       ALastModified: TDateTime = 0;
       AResponseType: TResponseType = rtXML): Boolean;
+    procedure SetXEROAppDetails(AXEROAppDetails: TXEROAppDetails);
+    function GetXEROAppDetails: TXEROAppDetails;
   public
     constructor Create(AOwner: TComponent); override;
 
   published
     property LogLevel: TLogLevel read FLogLevel write FLogLevel;
-    property XEROAppDetails: TXEROAppDetails read FXEROAppDetails
-      write FXEROAppDetails;
+    property XEROAppDetails: TXEROAppDetails read GetXEROAppDetails
+      write SetXEROAppDetails;
     property OnLog: TOnLog read FOnLog write FOnLog;
   end;
 
@@ -141,7 +143,7 @@ type
   protected
     function GetDefaultResponseType: TResponseType; virtual;
     procedure SetResponse(AResponse: string; AResult: Boolean = true;
-      AErrorMessage: string = '');
+      AErrorMessage: string = ''); virtual;
     property ResponseType: TResponseType read FResponseType write FResponseType;
   public
     constructor Create(AOwner: TComponent); override;
@@ -157,56 +159,19 @@ type
   TXEROAPI = class(TXEROAPIBase)
   private
     FXEROResponseBase: TXEROResponseBase;
-    function GetAPIURL: string; virtual; abstract;
   protected
+    function GetAPIURL: string; virtual; abstract;
     procedure ValidateSettings; override;
     function GetDateTimeFilterString(ADateTime: TDateTime): string;
+    procedure SetXEROResponseBase(AXEROResponseBase: TXEROResponseBase);
+    function GetXEROResponseBase: TXEROResponseBase;
   public
     function Find(AFilter: string = ''; AOrderBy: string = '';
       APage: integer = 0; ALastModified: TDateTime = 0): Boolean;
   published
-    property Response: TXEROResponseBase read FXEROResponseBase
-      write FXEROResponseBase;
+    property Response: TXEROResponseBase read GetXEROResponseBase
+      write SetXEROResponseBase;
 
-  end;
-
-  // Invoice Status
-  // ---
-  // DRAFT	A Draft Invoice (default)
-  // SUBMITTED	An Awaiting Approval Invoice
-  // DELETED	A Deleted Invoice
-  // AUTHORISED	An Invoice that is Approved and Awaiting Payment OR partially paid
-  // PAID	An Invoice that is completely Paid
-  // VOIDED	A Voided Invoice
-type
-  TXEROInvoiceStatus = (isUnspecified, isDraft, isSubmitted, isDeleted,
-    isAuthorised, isPaid, isVoided);
-
-  // Invoice Type
-  // ---
-  // ACCPAY	A bill – commonly known as a Accounts Payable or supplier invoice
-  // ACCREC	A sales invoice – commonly known as an Accounts Receivable or customer invoice
-type
-  TXEROInvoiceType = (itUnspecified, itAccPay, itAccRec);
-
-type
-  TXEROInvoices = class(TXEROAPI)
-  private
-    function GetAPIURL: string; override;
-  protected
-    function GetInvoiceStatus(AInvoiceStatus: TXEROInvoiceStatus): string;
-    function GetInvoiceType(AInvoiceType: TXEROInvoiceType): string;
-  public
-    function Find(APage: integer = 0; AOrderBy: string = '';
-      AInvoiceType: TXEROInvoiceType = itUnspecified;
-      AInvoiceStatus: TXEROInvoiceStatus = isUnspecified;
-      AInvoiceID: string = ''; AInvoiceNumber: string = '';
-      AReference: string = ''; ADate: TDateTime = 0; ADueDate: TDateTime = 0;
-      ALastModified: TDateTime = 0): Boolean; overload;
-    function GetDateRange(AStartDate: TDateTime; AEndDate: TDateTime;
-      APage: integer = 0;
-      AInvoiceType: TXEROInvoiceType = itUnspecified): Boolean;
-  published
   end;
 
 implementation
@@ -659,6 +624,16 @@ begin
   end;
 end;
 
+procedure TXEROAPIBase.SetXEROAppDetails(AXEROAppDetails: TXEROAppDetails);
+begin
+  FXEROAppDetails := AXEROAppDetails;
+end;
+
+function TXEROAPIBase.GetXEROAppDetails: TXEROAppDetails;
+begin
+  Result := FXEROAppDetails;
+end;
+
 function TXEROAPIBase.Get(AURL: string; AParams: string; var AResponse: string;
   ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML): Boolean;
 var
@@ -804,6 +779,23 @@ begin
   end;
 end;
 
+procedure TXEROAPI.SetXEROResponseBase(AXEROResponseBase: TXEROResponseBase);
+begin
+  if Assigned(AXEROResponseBase) then
+  begin
+    FXEROResponseBase := AXEROResponseBase;
+  end
+  else
+  begin
+    FXEROResponseBase := nil;
+  end;
+end;
+
+function TXEROAPI.GetXEROResponseBase: TXEROResponseBase;
+begin
+  Result := FXEROResponseBase;
+end;
+
 function TXEROAPI.Find(AFilter: string = ''; AOrderBy: string = '';
   APage: integer = 0; ALastModified: TDateTime = 0): Boolean;
 var
@@ -840,123 +832,6 @@ begin
   begin
     FXEROResponseBase.SetResponse('', False, ResponseData);
   end;
-end;
-
-// TXEROInvoices
-
-function TXEROInvoices.GetAPIURL: string;
-begin
-  Result := XERO_API_BASE_URL + 'Invoices';
-end;
-
-function TXEROInvoices.GetInvoiceStatus(AInvoiceStatus
-  : TXEROInvoiceStatus): string;
-begin
-  case AInvoiceStatus of
-    isUnspecified:
-      Result := '';
-    isDraft:
-      Result := 'DRAFT';
-    isSubmitted:
-      Result := 'SUBMITTED';
-    isDeleted:
-      Result := 'DELETED';
-    isAuthorised:
-      Result := 'AUTHORISED';
-    isPaid:
-      Result := 'PAID';
-    isVoided:
-      Result := 'VOIDED';
-  end;
-end;
-
-function TXEROInvoices.GetInvoiceType(AInvoiceType: TXEROInvoiceType): string;
-begin
-  case AInvoiceType of
-    itUnspecified:
-      Result := '';
-    itAccPay:
-      Result := 'ACCPAY';
-    itAccRec:
-      Result := 'ACCREC';
-  end;
-end;
-
-function TXEROInvoices.Find(APage: integer = 0; AOrderBy: string = '';
-  AInvoiceType: TXEROInvoiceType = itUnspecified;
-  AInvoiceStatus: TXEROInvoiceStatus = isUnspecified; AInvoiceID: string = '';
-  AInvoiceNumber: string = ''; AReference: string = ''; ADate: TDateTime = 0;
-  ADueDate: TDateTime = 0; ALastModified: TDateTime = 0): Boolean;
-var
-  Filter: string;
-  InvoiceStatus, InvoiceType, InvoiceDueDate, InvoiceDate: string;
-
-  procedure AddToFilter(AFieldName: string; AData: string;
-    AQuoteData: Boolean = true);
-  var
-    Data: string;
-  begin
-    if AQuoteData then
-    begin
-      Data := '"' + AData + '"';
-    end
-    else
-    begin
-      Data := AData;
-    end;
-    if not IsEmptyString(AData) then
-    begin
-      if not IsEmptyString(Filter) then
-      begin
-        Filter := Filter + ' AND ';
-      end;
-      Filter := Filter + AFieldName + '==' + Data;
-    end;
-  end;
-
-begin
-  Filter := '';
-  InvoiceStatus := GetInvoiceStatus(AInvoiceStatus);
-  InvoiceType := GetInvoiceType(AInvoiceType);
-  InvoiceDueDate := GetDateTimeFilterString(ADueDate);
-  InvoiceDate := GetDateTimeFilterString(ADate);
-  AddToFilter('Status', InvoiceStatus);
-  AddToFilter('Type', InvoiceType);
-  AddToFilter('InvoiceID', AInvoiceID);
-  AddToFilter('InvoiceNumber', AInvoiceNumber);
-  AddToFilter('Reference', AReference);
-  AddToFilter('DueDate', InvoiceDueDate, False);
-  AddToFilter('Date', InvoiceDate, False);
-  Debug('Find', Format('Filter: %s', [Filter]));
-  Result := Find(Filter, AOrderBy, APage, ALastModified);
-end;
-
-function TXEROInvoices.GetDateRange(AStartDate: TDateTime; AEndDate: TDateTime;
-  APage: integer = 0; AInvoiceType: TXEROInvoiceType = itUnspecified): Boolean;
-var
-  Filter: string;
-  InvoiceType: string;
-  StartDate, EndDate: string;
-
-begin
-  Filter := '';
-  InvoiceType := GetInvoiceType(AInvoiceType);
-  StartDate := GetDateTimeFilterString(AStartDate);
-  EndDate := GetDateTimeFilterString(AEndDate);
-  if not IsEmptyString(InvoiceType) then
-  begin
-    Filter := Filter + 'Type=="' + InvoiceType + '"';
-  end;
-
-  if not IsEmptyString(Filter) then
-  begin
-    Filter := Filter + ' AND ';
-  end;
-
-  Filter := Filter + 'Date>=' + StartDate + ' AND Date <= ' + EndDate;
-  Debug('GetDateRange', Format('Filter: %s', [Filter]));
-  Result := Find(Filter, 'Date ASC', APage);
-
 end;
 
 end.

@@ -33,7 +33,10 @@ requires
   IndyProtocols,
   IndyCore,
   dbrtl,
-  dsnap;
+  dsnap,
+  xmlrtl,
+  inet,
+  soaprtl;
 
 contains
   XERO.API in '..\source\XERO.API.pas',
@@ -50,6 +53,10 @@ contains
   XERO.Utils in '..\source\XERO.Utils.pas',
   XEROComponentRegister in '..\source\XEROComponentRegister.pas',
   XERO.API.Response.ClientDataset in '..\source\XERO.API.Response.ClientDataset.pas',
-  XERO.API.Response.Text in '..\source\XERO.API.Response.Text.pas';
+  XERO.API.Response.Text in '..\source\XERO.API.Response.Text.pas',
+  XERO.API.Invoices in '..\source\XERO.API.Invoices.pas',
+  XERO.ISO8601 in '..\source\XERO.ISO8601.pas',
+  XERO.XMLParser in '..\source\XERO.XMLParser.pas';
 
 end.
+
