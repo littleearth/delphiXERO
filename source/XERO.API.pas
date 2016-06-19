@@ -69,7 +69,6 @@ type
     function GetPublicKey: TStrings;
     procedure SetPrivateKey(AStrings: TStrings);
     procedure SetPublicKey(AStrings: TStrings);
-
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -551,11 +550,13 @@ var
   nonce: string;
   params: TStringList;
   url: string;
+  LPrivateKey: string;
 begin
   // Generate OAuth TIMESTAMP and NONCE
 
   timestamp := OAuthTimeStamp;
   nonce := GetGUIDString;
+  LPrivateKey := StripCRLLF(APrivateKey);
 
   Delete(nonce, 1, 1);
   SetLength(nonce, Length(nonce) - 1);
@@ -580,7 +581,7 @@ begin
 
     s := OAuthBaseString(aMethod, url, params);
 
-    s := OAuthSignature(s, APrivateKey);
+    s := OAuthSignature(s, LPrivateKey);
 
     // Remove any params from the URL that we will include as the REALM in the Authorization header
 

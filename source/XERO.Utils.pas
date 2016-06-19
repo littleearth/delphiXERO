@@ -7,6 +7,7 @@ uses
   System.Classes;
 
 function IsEmptyString(AValue: string): boolean;
+function StripCRLLF(AValue: string): string;
 
 function URLEncode(const AStr: String): String;
 function URLDecode(const AStr: string): string;
@@ -20,6 +21,13 @@ uses
   StrUtils, System.IOUtils,
   Winapi.ShellAPI,
   IdURI;
+
+function StripCRLLF(AValue: string): string;
+begin
+  Result := AValue;
+  Result := StringReplace(Result, #10, '', [rfReplaceAll]);
+  Result := StringReplace(Result, #13, '', [rfReplaceAll]);
+end;
 
 function GetURLSeperator(AURL: string): string;
 begin
@@ -38,14 +46,13 @@ var
   i: integer;
 begin
   Result := '';
-  for i := 1 to length(AStr) do
+  for i := 1 to Length(AStr) do
     if not(AStr[i] in ['A' .. 'Z', 'a' .. 'z', '0', '1' .. '9', '-', '_', '~',
       '.']) then
       Result := Result + '%' + inttohex(ord(AStr[i]), 2)
     else
       Result := Result + AStr[i];
 end;
-
 
 function URLDecode(const AStr: string): string;
 var
@@ -55,7 +62,7 @@ begin
   Result := '';
 
   i := 1;
-  while (i <= length(AStr)) do
+  while (i <= Length(AStr)) do
   begin
     if (AStr[i] = '%') then
     begin
@@ -99,6 +106,5 @@ begin
   Result := ReplaceStr(Result, '&#xA;', #10);
   Result := ReplaceStr(Result, '&#xD;', #13);
 end;
-
 
 end.
