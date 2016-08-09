@@ -1,8 +1,8 @@
-{ VerySimpleXML v2.0.1 - a lightweight, one-unit, cross-platform XML reader/writer
-  for Delphi 2010-XE7 by Dennis Spreen
+{ VerySimpleXML v2.0.2 - a lightweight, one-unit, cross-platform XML reader/writer
+  for Delphi 2010 - 10.1 Berlin by Dennis Spreen
   http://blog.spreendigital.de/2014/09/13/verysimplexml-2-0/
 
-  (c) Copyrights 2011-2014 Dennis D. Spreen <dennis@spreendigital.de>
+  (c) Copyrights 2011-2016 Dennis D. Spreen <dennis@spreendigital.de>
   This unit is free and can be used for any needs. The introduction of
   any changes and the use of those changed library is permitted without
   limitations. Only requirement:
@@ -24,7 +24,7 @@ unit XERO.XMLParser;
 interface
 
 uses
-  Classes, SysUtils, Generics.Defaults, Generics.Collections;
+  Classes, SysUtils, Generics.Defaults, Generics.Collections, Rtti;
 
 const
   TXmlSpaces = #$20 + #$0A + #$0D + #9;
@@ -44,6 +44,31 @@ type
 {$IFNDEF AUTOREFCOUNT}
   WeakAttribute = class(TCustomAttribute);
 {$ENDIF}
+  TStreamReaderFillBuffer = procedure(var Encoding: TEncoding) of object;
+
+  TXmlStreamReader = class(TStreamReader)
+  protected
+    FBufferedData: TStringBuilder;
+    FNoDataInStream: PBoolean;
+    FFillBuffer: TStreamReaderFillBuffer;
+    procedure FillBuffer;
+    /// <summary> Call to FillBuffer method of TStreamreader </summary>
+  public
+    /// <summary> Extend the TStreamReader with RTTI pointers </summary>
+    constructor Create(Stream: TStream; Encoding: TEncoding;
+      DetectBOM: Boolean = False; BufferSize: Integer = 4096);
+    /// <summary> Assures the read buffer holds at least Value characters </summary>
+    function PrepareBuffer(Value: Integer): Boolean;
+    /// <summary> Extract text until chars found in StopChars </summary>
+    function ReadText(const StopChars: String; Options: TExtractTextOptions)
+      : String; virtual;
+    /// <summary> Returns fist char but does not removes it from the buffer </summary>
+    function FirstChar: String;
+    /// <summary> Proceed with the next character(s) (value optional, default 1) </summary>
+    procedure IncCharPos(Value: Integer = 1); virtual;
+    /// <summary> Returns True if the first uppercased characters at the current position match Value </summary>
+    function IsUppercaseText(const Value: String): Boolean; virtual;
+  end;
 
   TXmlAttribute = class(TObject)
   private
@@ -178,10 +203,6 @@ type
     property NodeName: String read Name write Name;
     /// <summary> The node text, same as property Text </summary>
     property NodeValue: String read Text write Text;
-
-
-
-
   end;
 
   TXmlNodeList = class(TObjectList<TXmlNode>)
@@ -242,16 +263,17 @@ type
     [Weak]
     FDocumentElement: TXmlNode;
     SkipIndent: Boolean;
-    procedure Parse(Reader: TStreamReader); virtual;
-    procedure ParseComment(Reader: TStreamReader;
+    procedure Parse(Reader: TXmlStreamReader); virtual;
+    procedure ParseComment(Reader: TXmlStreamReader;
       var Parent: TXmlNode); virtual;
-    procedure ParseDocType(Reader: TStreamReader;
+    procedure ParseDocType(Reader: TXmlStreamReader;
       var Parent: TXmlNode); virtual;
-    procedure ParseProcessingInstr(Reader: TStreamReader;
+    procedure ParseProcessingInstr(Reader: TXmlStreamReader;
       var Parent: TXmlNode); virtual;
-    procedure ParseCData(Reader: TStreamReader; var Parent: TXmlNode); virtual;
+    procedure ParseCData(Reader: TXmlStreamReader;
+      var Parent: TXmlNode); virtual;
     procedure ParseText(const Line: String; Parent: TXmlNode); virtual;
-    function ParseTag(Reader: TStreamReader; ParseText: Boolean;
+    function ParseTag(Reader: TXmlStreamReader; ParseText: Boolean;
       var Parent: TXmlNode): TXmlNode; overload; virtual;
     function ParseTag(const TagStr: String; var Parent: TXmlNode): TXmlNode;
       overload; virtual;
@@ -340,17 +362,7 @@ uses
 type
   TStreamReaderHelper = class helper for TStreamReader
   public
-    /// <summary> Assures the read buffer holds at least Value characters </summary>
-    function PrepareBuffer(Value: Integer): Boolean;
-    /// <summary> Extract text until chars found in StopChars </summary>
-    function ReadText(const StopChars: String; Options: TExtractTextOptions)
-      : String; virtual;
-    /// <summary> Returns fist char but does not removes it from the buffer </summary>
-    function FirstChar: String;
-    /// <summary> Proceed with the next character(s) (value optional, default 1) </summary>
-    procedure IncCharPos(Value: Integer = 1); virtual;
-    /// <summary> Returns True if the first uppercased characters at the current position match Value </summary>
-    function IsUppercaseText(const Value: String): Boolean; virtual;
+    procedure GetFillBuffer(var Method: TStreamReaderFillBuffer);
   end;
 
 const
@@ -374,7 +386,6 @@ begin
 end;
 {$IFEND}
 {$IF CompilerVersion < 23}
-
 // Delphi XE2 added ANSI as Encoding, in every other Delphi version use TEncoding.Default
 type
   TEncodingHelper = class helper for TEncoding
@@ -541,14 +552,15 @@ end;
 function TXMLParser.LoadFromStream(const Stream: TStream;
   BufferSize: Integer = 4096): TXMLParser;
 var
-  Reader: TStreamReader;
+  Reader: TXmlStreamReader;
 begin
   if Encoding = '' then // none specified then use UTF8 with DetectBom
-    Reader := TStreamReader.Create(Stream, TEncoding.UTF8, True, BufferSize)
+    Reader := TXmlStreamReader.Create(Stream, TEncoding.UTF8, True, BufferSize)
   else if AnsiSameText(Encoding, 'utf-8') then
-    Reader := TStreamReader.Create(Stream, TEncoding.UTF8, False, BufferSize)
+    Reader := TXmlStreamReader.Create(Stream, TEncoding.UTF8, False, BufferSize)
   else
-    Reader := TStreamReader.Create(Stream, TEncoding.ANSI, False, BufferSize);
+    Reader := TXmlStreamReader.Create(Stream, TEncoding.ANSI, False,
+      BufferSize);
   try
     Parse(Reader);
   finally
@@ -557,7 +569,7 @@ begin
   Result := Self;
 end;
 
-procedure TXMLParser.Parse(Reader: TStreamReader);
+procedure TXMLParser.Parse(Reader: TXmlStreamReader);
 var
   Parent, Node: TXmlNode;
   FirstChar: String;
@@ -580,7 +592,7 @@ begin
       if Reader.IsUppercaseText('!--') then // check for a comment node
         ParseComment(Reader, Parent)
       else if Reader.IsUppercaseText('!DOCTYPE') then
-        // check for a doctype node
+      // check for a doctype node
         ParseDocType(Reader, Parent)
       else if Reader.IsUppercaseText('![CDATA[') then // check for a cdata node
         ParseCData(Reader, Parent)
@@ -658,7 +670,8 @@ begin
   end;
 end;
 
-procedure TXMLParser.ParseCData(Reader: TStreamReader; var Parent: TXmlNode);
+procedure TXMLParser.ParseCData(Reader: TXmlStreamReader;
+  var Parent: TXmlNode);
 var
   Node: TXmlNode;
 begin
@@ -666,7 +679,8 @@ begin
   Node.Text := Reader.ReadText(']]>', [etoDeleteStopChar, etoStopString]);
 end;
 
-procedure TXMLParser.ParseComment(Reader: TStreamReader; var Parent: TXmlNode);
+procedure TXMLParser.ParseComment(Reader: TXmlStreamReader;
+  var Parent: TXmlNode);
 var
   Node: TXmlNode;
 begin
@@ -674,7 +688,8 @@ begin
   Node.Text := Reader.ReadText('-->', [etoDeleteStopChar, etoStopString]);
 end;
 
-procedure TXMLParser.ParseDocType(Reader: TStreamReader; var Parent: TXmlNode);
+procedure TXMLParser.ParseDocType(Reader: TXmlStreamReader;
+  var Parent: TXmlNode);
 var
   Node: TXmlNode;
   Quote: String;
@@ -691,7 +706,7 @@ begin
   end;
 end;
 
-procedure TXMLParser.ParseProcessingInstr(Reader: TStreamReader;
+procedure TXMLParser.ParseProcessingInstr(Reader: TXmlStreamReader;
   var Parent: TXmlNode);
 var
   Node: TXmlNode;
@@ -717,7 +732,7 @@ begin
   Parent := Node.Parent;
 end;
 
-function TXMLParser.ParseTag(Reader: TStreamReader; ParseText: Boolean;
+function TXMLParser.ParseTag(Reader: TXmlStreamReader; ParseText: Boolean;
   var Parent: TXmlNode): TXmlNode;
 var
   Tag: String;
@@ -852,13 +867,9 @@ class function TXMLParser.Unescape(const Value: String): String;
 begin
   Result := ReplaceStr(Value, '&lt;', '<');
   Result := ReplaceStr(Result, '&gt;', '>');
-  Result := ReplaceStr(Result, '&apos;', chr(39));
   Result := ReplaceStr(Result, '&quot;', '"');
+  Result := ReplaceStr(Result, '&apos;', '''');
   Result := ReplaceStr(Result, '&amp;', '&');
-  Result := ReplaceStr(Result, '&#10;', #10);
-  Result := ReplaceStr(Result, '&#13;', #13);
-  Result := ReplaceStr(Result, '&#xA;', #10);
-  Result := ReplaceStr(Result, '&#xD;', #13);
 end;
 
 procedure TXMLParser.SetText(const Value: String);
@@ -1242,7 +1253,6 @@ begin
   end;
 end;
 
-
 function TXmlNode.SetTextFromDate(ADate: TDate): TXmlNode;
 var
   Iso8601: TIso8601;
@@ -1597,10 +1607,7 @@ begin
   Result := ReplaceStr(Value, '&', '&amp;');
   Result := ReplaceStr(Result, '<', '&lt;');
   Result := ReplaceStr(Result, '>', '&gt;');
-  Result := ReplaceStr(Result, chr(39), '&apos;');
   Result := ReplaceStr(Result, '"', '&quot;');
-  Result := ReplaceStr(Result, #13, '&#xD;'); // CR
-  Result := ReplaceStr(Result, #10, '&#xA;'); // LF
 end;
 
 procedure TXmlAttribute.SetValue(const Value: String);
@@ -1609,9 +1616,31 @@ begin
   AttributeType := atValue;
 end;
 
-{ TStreamReaderHelper }
+{ TXmlStreamReader }
 
-function TStreamReaderHelper.FirstChar: String;
+constructor TXmlStreamReader.Create(Stream: TStream; Encoding: TEncoding;
+  DetectBOM: Boolean; BufferSize: Integer);
+begin
+  inherited;
+  FBufferedData := TRttiContext.Create.GetType(TStreamReader)
+    .GetField('FBufferedData').GetValue(Self).AsObject as TStringBuilder;
+  FNoDataInStream := Pointer(NativeInt(Self) + TRttiContext.Create.GetType
+    (TStreamReader).GetField('FNoDataInStream').Offset);
+  GetFillBuffer(FFillBuffer);
+end;
+
+procedure TXmlStreamReader.FillBuffer;
+var
+  TempEncoding: TEncoding;
+begin
+  TempEncoding := CurrentEncoding;
+  FFillBuffer(TempEncoding);
+  if TempEncoding <> CurrentEncoding then
+    TRttiContext.Create.GetType(TStreamReader).GetField('FEncoding')
+      .SetValue(Self, TempEncoding)
+end;
+
+function TXmlStreamReader.FirstChar: String;
 begin
   if PrepareBuffer(1) then
     Result := Self.FBufferedData.Chars[0]
@@ -1619,13 +1648,13 @@ begin
     Result := '';
 end;
 
-procedure TStreamReaderHelper.IncCharPos(Value: Integer);
+procedure TXmlStreamReader.IncCharPos(Value: Integer);
 begin
   if PrepareBuffer(Value) then
     Self.FBufferedData.Remove(0, Value);
 end;
 
-function TStreamReaderHelper.IsUppercaseText(const Value: String): Boolean;
+function TXmlStreamReader.IsUppercaseText(const Value: String): Boolean;
 var
   ValueLength: Integer;
   Text: String;
@@ -1644,20 +1673,25 @@ begin
   end;
 end;
 
-function TStreamReaderHelper.PrepareBuffer(Value: Integer): Boolean;
+{ function TXmlStreamReader.NoDataInStream: Boolean;
+  begin
+  Result := TRttiContext.Create.GetType(TStreamReader).GetField('FNoDataInStream').GetValue(Self).AsBoolean;
+  end; }
+
+function TXmlStreamReader.PrepareBuffer(Value: Integer): Boolean;
 begin
   Result := False;
 
   if Self.FBufferedData = NIL then
     Exit;
 
-  if (Self.FBufferedData.Length < Value) and (not Self.FNoDataInStream) then
-    Self.FillBuffer(Self.FEncoding);
+  if (Self.FBufferedData.Length < Value) and (not Self.FNoDataInStream^) then
+    FillBuffer;
 
   Result := (Self.FBufferedData.Length >= Value);
 end;
 
-function TStreamReaderHelper.ReadText(const StopChars: String;
+function TXmlStreamReader.ReadText(const StopChars: String;
   Options: TExtractTextOptions): String;
 var
   NewLineIndex: Integer;
@@ -1679,19 +1713,19 @@ begin
     // if we're searching for a string then assure the buffer is wide enough
     if (etoStopString in Options) and
       (NewLineIndex + StopCharLength > Self.FBufferedData.Length) and
-      (not Self.FNoDataInStream) then
-      Self.FillBuffer(Self.FEncoding);
+      (not Self.FNoDataInStream^) then
+      FillBuffer;
 
     if NewLineIndex >= Self.FBufferedData.Length then
     begin
-      if Self.FNoDataInStream then
+      if Self.FNoDataInStream^ then
       begin
         PostNewLineIndex := NewLineIndex;
         Break;
       end
       else
       begin
-        Self.FillBuffer(Self.FEncoding);
+        FillBuffer;
         if Self.FBufferedData.Length = 0 then
           Break;
       end;
@@ -1745,6 +1779,15 @@ begin
   if NewLineIndex > 0 then
     Result := Self.FBufferedData.ToString(0, NewLineIndex);
   Self.FBufferedData.Remove(0, PostNewLineIndex);
+end;
+
+{ TStreamReaderHelper }
+
+procedure TStreamReaderHelper.GetFillBuffer(var Method
+  : TStreamReaderFillBuffer);
+begin
+  TMethod(Method).Code := @TStreamReader.FillBuffer;
+  TMethod(Method).Data := Self;
 end;
 
 end.
