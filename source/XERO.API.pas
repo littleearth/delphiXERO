@@ -265,8 +265,6 @@ begin
 end;
 
 function TXEROAPIBase.NormalisedURL(const AURL: string): string;
-var
-  i: integer;
 begin
   Result := AURL;
 
@@ -276,7 +274,7 @@ begin
   if (Pos(':443/', Result) <> 0) and (Copy(Result, 1, 6) = 'https:') then
     Result := StringReplace(Result, ':443/', '/', []);
 
-  Result := UTF8Encode(Result);
+  Result := String(UTF8Encode(Result));
 end;
 
 function TXEROAPIBase.GetGUIDString: string;
@@ -292,11 +290,10 @@ function TXEROAPIBase.OAuthBaseString(const aMethod: string; const AURL: string;
   const AParams: TStrings): string;
 
 var
-  i, idx: integer;
+  i : integer;
   params: TStringList;
   s: string;
   url: string;
-  key: string;
   par: string;
   pars: string;
 begin
@@ -306,7 +303,7 @@ begin
     params.Assign(AParams);
 
     // Now identify any query parameters that may be encoded in the URL
-    url := UTF8Encode(AURL);
+    url := String(UTF8Encode(AURL));
     i := Pos('?', url);
     if i <> 0 then
     begin
@@ -360,8 +357,8 @@ begin
     // Now compose the OAuth Base String:  METHOD&URL&PARAMS
     s := '';
     for i := 0 to Pred(params.Count) do
-      s := s + OAuthEncode(UTF8Encode(params.Names[i])) + '=' +
-        OAuthEncode(UTF8Encode(params.ValueFromIndex[i])) + '&';
+      s := s + OAuthEncode(String(UTF8Encode(params.Names[i]))) + '=' +
+          OAuthEncode(String(UTF8Encode(params.ValueFromIndex[i]))) + '&';
 
     SetLength(s, Length(s) - 1);
 
@@ -395,7 +392,7 @@ var
 begin
   RSAPublicKeyFromPrivate(aKey, key);
   try
-    Result := RSAPKCS1v15AsBase64(aBaseString, key);
+    Result := String(RSAPKCS1v15AsBase64(aBaseString, key));
   finally
     RSAPublicKeyFinalise(key);
   end;
@@ -408,7 +405,7 @@ var
   key: TRSAPrivateKey;
 begin
 
-  RSAReadASN1PrivateKey(aKey, key);
+  RSAReadASN1PrivateKey(AnsiString(aKey), key);
   try
     Result := OAuthSignature(aBaseString, key);
 
@@ -426,7 +423,7 @@ var
   hmac: TIdHMACSHA1;
   hash: TIdBytes;
 begin
-  key := UTF8Encode(aConsumerSecret + '&' + aTokenSecret);
+  key := String(UTF8Encode(aConsumerSecret + '&' + aTokenSecret));
 
   hmac := TIdHMACSHA1.Create;
   try
@@ -447,16 +444,10 @@ function TXEROAPIBase.OAuthTimeStamp: string;
 const
   UNIX_BASE = 25569.0;
 var
-  local: TSystemTime;
-  gmt: TSystemTime;
   dt: TDateTime;
   ts: integer;
 begin
-  DateTimeToSystemTime(Now, local);
-
-  Win32Check(TzSpecificLocalTimeToSystemTime(NIL, local, gmt));
-
-  dt := SystemTimeToDateTime(gmt);
+  dt := TTimeZone.Local.ToUniversaltime(now);
   ts := Round((dt - UNIX_BASE) * 86400);
   Result := IntToStr(ts);
 end;

@@ -101,7 +101,7 @@ var
   Bias: TDateTime;
 begin
   Bias := TimeZoneBias;
-  Result := Value - TimeZoneBias;
+  Result := Value - Bias;
 end;
 
 class function TUtc.ToUtc(const Value: TDateTime): TDateTime;
@@ -109,7 +109,7 @@ var
   Bias: TDateTime;
 begin
   Bias := TimeZoneBias;
-  Result := Value + TimeZoneBias;
+  Result := Value + Bias;
 end;
 
 class function TUtc.UtcNow: TDateTime;

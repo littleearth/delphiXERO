@@ -73,6 +73,7 @@ implementation
 uses
   Math,
   SysUtils,
+  ANSIStrings,
   Windows,
   XERO.Base64,
   XERO.SHA1;
@@ -218,8 +219,6 @@ var
   p: Int64;
 begin
   CheckEOF;
-
-  result := 0;
 
   p := fStream.Position;
   try
@@ -378,8 +377,8 @@ var
   procedure Expect(const aString: ANSIString); overload;
   begin
     if (Copy(s, 1, Length(aString)) <> aString) then
-      raise Exception.Create('Expected ''' + aString + ''' in file.  Found ''' +
-        Copy(s, 1, Length(aString)) + '''');
+      raise Exception.Create('Expected ''' + String(aString) + ''' in file.  Found ''' +
+        String(Copy(s, 1, Length(aString))) + '''');
 
     Delete(s, 1, Length(aString));
   end;
@@ -392,7 +391,7 @@ var
     p := Pos(aString, s);
 
     if (p = 0) then
-      raise Exception.Create('Expected ''' + aString +
+      raise Exception.Create('Expected ''' + String(aString) +
         ''' in file but was not found');
 
     aSubString := Copy(s, 1, p - 1);
@@ -406,8 +405,8 @@ begin
   SetLength(s, aInput.Size - aInput.Position);
   aInput.Read(s[1], Length(s));
 
-  s := StringReplace(s, #13, '', [rfReplaceAll]);
-  s := StringReplace(s, #10, '', [rfReplaceAll]);
+  s := AnsiStrings.StringReplace(s, #13, '', [rfReplaceAll]);
+  s := AnsiStrings.StringReplace(s, #10, '', [rfReplaceAll]);
 
   Expect('-----');
   Expect('BEGIN ');
@@ -613,13 +612,13 @@ begin
 
     s := '0001' + pad + s;
 
-    HexToHugeWord(s, msg);
+    HexToHugeWordA(s, msg);
     HugeWordNormalise(msg);
 
     RSAEncryptMessage(aKey, msg, sig);
     HugeWordNormalise(sig);
 
-    result := HugeWordToHex(sig);
+    result := HugeWordToHexA(sig);
 
   finally
     HugeWordFinalise(msg);

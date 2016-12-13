@@ -6056,9 +6056,7 @@ end;
 // See:
 // http://maths-people.anu.edu.au/~brent/pd/mca-cup-0.5.9.pdf
 // http://code.google.com/p/bignumberslibrary/source/browse/trunk/src/ru/kirilchuk/bigint/BigInteger.java
-
-end.
-
+(*
   / * * * Multiplies two BigIntegers using the Karatsuba multiplication *
   algorithm.This is A recursive Divide - and -conquer algorithm which is *
   more efficient for large numbers than what is commonly called the * " grade -
@@ -6100,3 +6098,6 @@ BigInteger Result = ac.Add
 (abcd.Subtract(ac).Subtract(bd).shiftLeft(N)).Add(bd.shiftLeft(2 * N));
 
 return Result; }
+*)
+
+end.
