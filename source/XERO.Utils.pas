@@ -37,8 +37,19 @@ begin
 end;
 
 function IsEmptyString(AValue: string): boolean;
+var
+  ch : Char;
 begin
-  Result := Trim(AValue) = '';
+  result := true;
+  for ch in Avalue do
+  begin
+    case ch of
+    ' ': ;
+    else
+      result := false;
+      break;
+    end;
+  end;
 end;
 
 function URLEncode(const AStr: String): String;

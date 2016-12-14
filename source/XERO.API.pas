@@ -41,7 +41,7 @@ interface
 
 uses
   // System
-  System.SysUtils, System.Classes,
+  System.SysUtils, System.Classes, System.Variants,
 
   // Indy
   IdHTTP, IdIOHandler,
@@ -135,6 +135,11 @@ type
       var ResponseCode : integer; var ErrorDetail : string;
       ALastModified: TDateTime = 0;
       AResponseType: TResponseType = rtXML): Boolean; overload;
+
+    function Post(AURL :String; AParams : TStrings; AResponse : TStream;
+      var ResponseCode : Integer; var ErrorDetail : String;
+      AResponseType : TResponseType = rtXML): boolean;
+
     procedure SetXEROAppDetails(AXEROAppDetails: TXEROAppDetails);
     function GetXEROAppDetails: TXEROAppDetails;
 
@@ -202,11 +207,60 @@ type
 
   end;
 
+TXDataOp =
+  ( xdoEqual, xdoLess, xdoGreater, xdoLessEqual, xdoGreaterEqual, xdoNotEqual);
+TXDataFunc =
+  ( xdfStarts, xdfEnds, xdfContains);
+TXDataLogic =
+  ( xdlAnd, xdlOr, xdlNot);
+
+TBuilderState = (bsInit, bsOk, bsPending);
+
+{: Create a XERO 'DotNet' query string.
+  @Example
+    qb := TXEROQueryBuilder.Create;
+    qb.Op(xdoEqual, 'URL', 'http://place.com/url');
+    qb.Logic(xdlOr);
+    qb.Fn(xdfContains, 'Narration', 'Friend');
+}
+TXEROQueryBuilder = class
+protected
+  FStringBuilder : TStringBuilder;
+  FOpenParen : Integer;
+  FState : TBuilderState;
+  procedure OutValue( fieldValue : Variant; ForceString: Boolean = false);
+  function GetString : String;
+
+  procedure DoOp( AOp : TXDataOp; FieldName : String; fieldValue : Variant);
+  procedure DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant);
+public
+  procedure AfterConstruction; override;
+  procedure BeforeDestruction; override;
+
+  // Standard equality/inequality between a field and a value.
+  function Op( AOp : TXDataOp; FieldName : String; fieldValue : Variant) : TXEROQueryBuilder;
+
+  // Simple string functions (contains, starts, ends)
+  function Fn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant) : TXEROQueryBuilder;
+
+  // And/or/not logic operator
+  function Logic( ALg : TXDataLogic) : TXEROQueryBuilder;
+
+  // Begin parenthesis (grouping terms)
+  function StartParen : TXEROQueryBuilder;
+  // End parenthesis (grouping terms)
+  function EndParen : TXEROQueryBuilder;
+
+  // Retrieve the value as a string for an OData query.
+  property AsString : String read GetString;
+end;
+
+
 implementation
 
 uses
   // System
-  Windows, DateUtils,
+  Windows, System.DateUtils, System.StrUtils,
 
   // Indy
   IdGlobal, IdHMACSHA1, IdURI, IdSSL, IdSSLOpenSSL,
@@ -214,12 +268,8 @@ uses
   IdTCPClient, IdIOHandlerSocket, IdIOHandlerStack,
 
   // XERO
-  XERO.HugeInt, XERO.Base64, XERO.RSAUtils, XERO.Utils;
-
-function TzSpecificLocalTimeToSystemTime(lpTimeZoneInformation
-  : PTimeZoneInformation; var lpLocalTime, lpUniversalTime: TSystemTime): BOOL;
-  stdcall; external kernel32;
-
+  XERO.HugeInt, XERO.Base64, XERO.RSAUtils, XERO.Utils,
+  XERO.MiscUtil, XERO.VarUtil;
 
 // TXEROAppDetails
 
@@ -810,6 +860,94 @@ begin
 
 end;
 
+function TXEROAPIBase.Post(AURL :String; AParams : TStrings; AResponse : TStream;
+    var ResponseCode : Integer; var ErrorDetail : String;
+    AResponseType : TResponseType = rtXML): boolean;
+var
+  strStream : TStringStream;
+begin
+  ValidateSettings;
+  try
+    if HasLog(logDebug) then
+    begin
+      if assigned(AParams) then
+        Debug('Post', Format('URL: %s, Params: %s', [AURL, AParams.CommaText]))
+      else
+        Debug('Post', Format('URL: %s, Params: nil', [AURL]));
+    end;
+
+    case FXEROAppDetails.OAuthSignatureMethod of
+      oaHMAC:
+        begin
+          OAuthSignRequest(HTTPClient.Request, 'POST', AURL, AParams,
+            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+            FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+        end;
+
+      oaRSA:
+        begin
+          OAuthSignRequest(HTTPClient.Request, 'POST', AURL, AParams,
+            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+            FXEROAppDetails.PrivateKey.Text);
+        end;
+    end;
+
+    HTTPClient.Request.ContentType := 'application/x-www-form-urlencoded';
+    case AResponseType of
+      rtXML: ;
+      rtJSON: HTTPClient.Request.Accept := 'application/json';
+    end;
+    HTTPClient.HTTPOptions := [hoForceEncodeParams];
+
+    Log(Format('URL: %s, Headers: %s, Accept: %s',
+      [AURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept ]));
+
+    try
+      HTTPClient.Post(AURL, AParams, AResponse);
+      responseCode := HTTPClient.Response.ResponseCode;
+      ErrorDetail  := HTTPClient.Response.ResponseText;
+      Result := true;
+
+    except
+      on E:EIdHTTPProtocolException do
+      begin
+        ResponseCode := E.ErrorCode;
+        ErrorDetail := E.Message;
+        // Convert error message to stream for parsing.
+        Result := false;
+        strStream := TStringStream.Create(E.ErrorMessage);
+        try
+          AResponse.CopyFrom(StrStream, 0);
+        finally
+          strStream.Free;
+        end;
+      end;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      ResponseCode := 10000;
+      ErrorDetail := E.Message;
+      result := false;
+    end;
+  end;
+
+  if HasLog(logDebug) then
+  begin
+    strStream := TStringStream.Create('');
+    try
+      strStream.CopyFrom(AResponse, 0);
+      Debug('Get', 'Result: ' + BoolToStr(Result, true)
+      + ', Response: ' + StrStream.DataString);
+    finally
+      FreeAndNil(strStream);
+    end;
+  end;
+
+end;
+
+
 
 // TXEROResponseBase
 
@@ -938,6 +1076,214 @@ begin
     ResponseCode, ErrorDetail, ALastModified, FXEROResponseBase.ResponseType);
 
   FXEROResponseBase.SetResponse(result, ResponseCode, ErrorDetail);
+end;
+
+// TXEROQueryBuilder
+//
+const
+  CODataOp : array[TXDataOp] of string =
+  ( '==', '<', '>', '<=', '>=', '!=');
+  CODataFunc : array[TXDataFunc] of string =
+  ( 'StartsWith', 'EndsWith', 'Contains');
+  CODataLogic : array[TXDataLogic] of string =
+  ('AND','OR', 'NOT');
+
+function IsGUID( const strVal : String) :boolean;
+const
+  CPattern = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+var
+  idx : integer;
+begin
+  result := length(strVal) = length(CPattern);
+  if result then
+  begin
+    for idx := 1 to length(strVal) do
+    begin
+      case strVal[idx] of
+        'a'..'f', '0'..'9':
+          if CPattern[idx] = '-' then
+          begin
+            result := false;
+            break;
+          end;
+        '-':
+          if CPattern[idx] <> '-' then
+          begin
+            result := false;
+            break;
+          end;
+      else
+        result := false;
+        break;
+      end
+    end;
+
+  end;
+end;
+
+// protected definitions
+
+procedure TXEROQueryBuilder.OutValue( fieldValue : Variant; ForceString: Boolean);
+var
+  dt : TDateTime;
+  strVal : String;
+begin
+  case VarType(fieldValue) of
+    varDate:
+      begin
+        dt := TDateTime(fieldValue);
+        FStringBuilder.Append('DateTime(');
+        if TimeOf(dt) = 0 then
+          FStringBuilder.Append(formatDatetime('yyyy,m,d', dt))
+        else
+          FStringBuilder.Append(formatDatetime('yyyy,m,d,hh,nn,ss', dt));
+        FStringBuilder.Append(')');
+      end;
+    varBoolean:
+      FStringBuilder.Append(IfThen(CastVarAsBoolean(fieldValue, true, true, false),'true','false'));
+  else
+    if VarIsEmpty(fieldValue) then
+      FStringBuilder.Append('null')
+    else if VarIsInteger(fieldValue) then
+      FStringBuilder.Append(CastVarAsInt(fieldValue))
+    else if VarIsRealNumber(fieldValue) then
+      FStringBuilder.Append(CastVarAsDouble(fieldValue))
+    else
+    begin
+      strVal := CastVarAsString(fieldValue);
+      if IsGUID(strVal) then
+      begin
+        FStringBuilder.Append('Guid("');
+        FStringBuilder.Append(strVal);
+        FStringBuilder.Append('")');
+      end
+      else
+      begin
+        FStringBuilder.Append('"');
+        FStringBuilder.Append(StringReplace(StringReplace(strVal, '\' ,'\\',[rfReplaceAll]), '"', '\"',[rfReplaceAll]));
+        FStringBuilder.Append('"');
+      end;
+    end;
+  end;
+end;
+
+function TXEROQueryBuilder.GetString : String;
+begin
+  if FOpenParen > 0 then
+    Raise Exception.Create('Unclosed parenthesis');
+  if FState = bsPending then
+    Raise Exception.Create('Expected expression');
+  result := FStringBuilder.ToString;
+end;
+
+procedure TXEROQueryBuilder.DoOp( AOp : TXDataOp; FieldName : String; fieldValue : Variant);
+begin
+  FStringBuilder.Append(FieldName);
+  FStringBuilder.Append(' ');
+  FStringBuilder.Append(CODataOp[AOp]);
+  FStringBuilder.Append(' ');
+  OutValue(fieldValue);
+end;
+
+procedure TXEROQueryBuilder.DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant);
+begin
+  FStringBuilder.Append(FieldName);
+  FStringBuilder.Append('.');
+  FStringBuilder.Append(CODataFunc[AFn]);
+  FStringBuilder.Append('(');
+  OutValue(fieldValue);
+  FStringBuilder.Append(')');
+end;
+
+// public definitions
+
+procedure TXEROQueryBuilder.AfterConstruction;
+begin
+  inherited;
+  FStringBuilder := TStringBuilder.Create;
+  FState := bsInit;
+end;
+
+procedure TXEROQueryBuilder.BeforeDestruction;
+begin
+  FreeAndNil(FStringBuilder);
+  inherited;
+end;
+
+// Standard equality/inequality between a field and a value.
+function TXEROQueryBuilder.Op( AOp : TXDataOp; FieldName : String; fieldValue : Variant) : TXEROQueryBuilder;
+begin
+  if FState = bsOk then
+    Raise Exception.Create('Logic operator required');
+  DoOp(AOp, FieldName, fieldValue);
+  FState := bsOK;
+  result := self;
+end;
+
+// Simple string functions (contains, starts, ends)
+function TXEROQueryBuilder.Fn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant) : TXEROQueryBuilder;
+begin
+  if FState = bsOk then
+    Raise Exception.Create('Logic operator required');
+  DoFn(AFn, FieldName, FieldValue);
+  FState := bsOK;
+  result := self;
+end;
+
+// And/or/not logic operator
+function TXEROQueryBuilder.Logic( ALg : TXDataLogic) : TXEROQueryBuilder;
+begin
+  case FState of
+    bsInit:
+      case Alg of
+        xdlAnd, xdlOr:
+          Raise Exception.Create('Can''t start with binary logic operator');
+      end;
+    bsPending:
+      case Alg of
+        xdlAnd, xdlOr:
+          Raise Exception.Create('Already has Logic operator');
+      end;
+    bsOK:
+      case Alg of
+        xdlNot:
+          Raise Exception.Create('Not operator not applicable here');
+      end;
+  end;
+  case Alg of
+    xdlAnd, xdlOr:
+      FState := bsPending;
+    xdlNot:
+      FState := bsPending;
+  end;
+  FStringBuilder.Append(' ');
+  FStringBuilder.Append(CODataLogic[Alg]);
+  FStringBuilder.Append(' ');
+  result := self;
+end;
+
+// Begin parenthesis (grouping terms)
+function TXEROQueryBuilder.StartParen : TXEROQueryBuilder;
+begin
+  if FState = bsOk then
+    Raise Exception.Create('Logic operator required');
+  Inc(FOpenParen);
+  FStringBuilder.Append('(');
+  FState := bsOK;
+  result := self;
+end;
+
+// End parenthesis (grouping terms)
+function TXEROQueryBuilder.EndParen : TXEROQueryBuilder;
+begin
+  if FState = bsPending then
+    Raise Exception.Create('Expected expression');
+
+  if FOpenParen = 0 then
+    Raise Exception.Create('No open parenthesis');
+  Dec(FOpenParen);
+  FStringBuilder.Append(')');
+  result := self;
 end;
 
 end.
