@@ -223,33 +223,38 @@ TBuilderState = (bsInit, bsOk, bsPending);
     qb.Logic(xdlOr);
     qb.Fn(xdfContains, 'Narration', 'Friend');
 }
-TXEROQueryBuilder = class
-protected
-  FStringBuilder : TStringBuilder;
+TXEROQueryBuilder = record
+private
+
+  FBuildString : String;
+  FLen, FCapacity : integer;
+
   FOpenParen : Integer;
   FState : TBuilderState;
+  procedure AppendStr( const strVal : String);
+
   procedure OutValue( fieldValue : Variant; ForceString: Boolean = false);
   function GetString : String;
 
-  procedure DoOp( AOp : TXDataOp; FieldName : String; fieldValue : Variant);
+  procedure DoOp(AOp : TXDataOp;  FieldName : String; fieldValue : Variant);
   procedure DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant);
 public
-  procedure AfterConstruction; override;
-  procedure BeforeDestruction; override;
+  class function Create : TXEROQueryBuilder; static;
+  procedure Init;
 
   // Standard equality/inequality between a field and a value.
-  function Op( AOp : TXDataOp; FieldName : String; fieldValue : Variant) : TXEROQueryBuilder;
+  procedure Op( FieldName : String; AOp : TXDataOp; fieldValue : Variant);
 
   // Simple string functions (contains, starts, ends)
-  function Fn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant) : TXEROQueryBuilder;
+  procedure Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant);
 
   // And/or/not logic operator
-  function Logic( ALg : TXDataLogic) : TXEROQueryBuilder;
+  procedure Logic( ALg : TXDataLogic);
 
   // Begin parenthesis (grouping terms)
-  function StartParen : TXEROQueryBuilder;
+  procedure StartParen;
   // End parenthesis (grouping terms)
-  function EndParen : TXEROQueryBuilder;
+  procedure EndParen;
 
   // Retrieve the value as a string for an OData query.
   property AsString : String read GetString;
@@ -1132,36 +1137,36 @@ begin
     varDate:
       begin
         dt := TDateTime(fieldValue);
-        FStringBuilder.Append('DateTime(');
+        AppendStr('DateTime(');
         if TimeOf(dt) = 0 then
-          FStringBuilder.Append(formatDatetime('yyyy,m,d', dt))
+          AppendStr(formatDatetime('yyyy,m,d', dt))
         else
-          FStringBuilder.Append(formatDatetime('yyyy,m,d,hh,nn,ss', dt));
-        FStringBuilder.Append(')');
+          AppendStr(formatDatetime('yyyy,m,d,hh,nn,ss', dt));
+        AppendStr(')');
       end;
     varBoolean:
-      FStringBuilder.Append(IfThen(CastVarAsBoolean(fieldValue, true, true, false),'true','false'));
+      AppendStr(IfThen(CastVarAsBoolean(fieldValue, true, true, false),'true','false'));
   else
     if VarIsEmpty(fieldValue) then
-      FStringBuilder.Append('null')
+      AppendStr('null')
     else if VarIsInteger(fieldValue) then
-      FStringBuilder.Append(CastVarAsInt(fieldValue))
+      AppendStr(IntToStr(CastVarAsInt(fieldValue)))
     else if VarIsRealNumber(fieldValue) then
-      FStringBuilder.Append(CastVarAsDouble(fieldValue))
+      AppendStr(FloatToStr(CastVarAsDouble(fieldValue)))
     else
     begin
       strVal := CastVarAsString(fieldValue);
       if IsGUID(strVal) then
       begin
-        FStringBuilder.Append('Guid("');
-        FStringBuilder.Append(strVal);
-        FStringBuilder.Append('")');
+        AppendStr('Guid("');
+        AppendStr(strVal);
+        AppendStr('")');
       end
       else
       begin
-        FStringBuilder.Append('"');
-        FStringBuilder.Append(StringReplace(StringReplace(strVal, '\' ,'\\',[rfReplaceAll]), '"', '\"',[rfReplaceAll]));
-        FStringBuilder.Append('"');
+        AppendStr('"');
+        AppendStr(StringReplace(StringReplace(strVal, '\' ,'\\',[rfReplaceAll]), '"', '\"',[rfReplaceAll]));
+        AppendStr('"');
       end;
     end;
   end;
@@ -1173,65 +1178,87 @@ begin
     Raise Exception.Create('Unclosed parenthesis');
   if FState = bsPending then
     Raise Exception.Create('Expected expression');
-  result := FStringBuilder.ToString;
+
+  if FCapacity <> FLen then
+  begin
+    FCapacity := FLen;
+    SetLength(FBuildString, FLen);
+  end;
+  result := FBuildString;
 end;
 
 procedure TXEROQueryBuilder.DoOp( AOp : TXDataOp; FieldName : String; fieldValue : Variant);
 begin
-  FStringBuilder.Append(FieldName);
-  FStringBuilder.Append(' ');
-  FStringBuilder.Append(CODataOp[AOp]);
-  FStringBuilder.Append(' ');
+  AppendStr(FieldName);
+  AppendStr(' ');
+  AppendStr(CODataOp[AOp]);
+  AppendStr(' ');
   OutValue(fieldValue);
 end;
 
 procedure TXEROQueryBuilder.DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant);
 begin
-  FStringBuilder.Append(FieldName);
-  FStringBuilder.Append('.');
-  FStringBuilder.Append(CODataFunc[AFn]);
-  FStringBuilder.Append('(');
+  AppendStr(FieldName);
+  AppendStr('.');
+  AppendStr(CODataFunc[AFn]);
+  AppendStr('(');
   OutValue(fieldValue);
-  FStringBuilder.Append(')');
+  AppendStr(')');
 end;
 
 // public definitions
-
-procedure TXEROQueryBuilder.AfterConstruction;
+//
+class function TXEROQueryBuilder.Create : TXEROQueryBuilder;
 begin
-  inherited;
-  FStringBuilder := TStringBuilder.Create;
-  FState := bsInit;
+  result.Init;
 end;
 
-procedure TXEROQueryBuilder.BeforeDestruction;
+procedure TXEROQueryBuilder.Init;
 begin
-  FreeAndNil(FStringBuilder);
-  inherited;
+  FState := bsInit;
+  FOpenParen := 0;
+  FBuildString := '';
+  FCapacity := 0;
+  FLen := 0;
+end;
+
+procedure TXEROQueryBuilder.AppendStr( const strVal : String);
+var
+  newLen, newCapacity : Integer;
+begin
+  newLen := FLen + Length(StrVal);
+  if newLen > FCapacity then
+  begin
+    newCapacity := FCapacity + 20;
+    if newLen > newCapacity then
+      newCapacity := newLen + 20;
+    SetLength(FBuildString, newCapacity);
+    FCapacity := newCapacity;
+  end;
+  Move(PChar(strVal)^, FBuildString[1+FLen], ByteLength(strVal) );
+  FLen := newLen;
 end;
 
 // Standard equality/inequality between a field and a value.
-function TXEROQueryBuilder.Op( AOp : TXDataOp; FieldName : String; fieldValue : Variant) : TXEROQueryBuilder;
+procedure TXEROQueryBuilder.Op(FieldName : String;  AOp : TXDataOp; fieldValue : Variant);
 begin
   if FState = bsOk then
     Raise Exception.Create('Logic operator required');
   DoOp(AOp, FieldName, fieldValue);
   FState := bsOK;
-  result := self;
 end;
 
 // Simple string functions (contains, starts, ends)
-function TXEROQueryBuilder.Fn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant) : TXEROQueryBuilder;
+procedure TXEROQueryBuilder.Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant);
 begin
   if FState = bsOk then
     Raise Exception.Create('Logic operator required');
   DoFn(AFn, FieldName, FieldValue);
   FState := bsOK;
-  result := self;
 end;
 
 // And/or/not logic operator
-function TXEROQueryBuilder.Logic( ALg : TXDataLogic) : TXEROQueryBuilder;
+procedure TXEROQueryBuilder.Logic( ALg : TXDataLogic);
 begin
   case FState of
     bsInit:
@@ -1256,25 +1283,23 @@ begin
     xdlNot:
       FState := bsPending;
   end;
-  FStringBuilder.Append(' ');
-  FStringBuilder.Append(CODataLogic[Alg]);
-  FStringBuilder.Append(' ');
-  result := self;
+  AppendStr(' ');
+  AppendStr(CODataLogic[Alg]);
+  AppendStr(' ');
 end;
 
 // Begin parenthesis (grouping terms)
-function TXEROQueryBuilder.StartParen : TXEROQueryBuilder;
+procedure TXEROQueryBuilder.StartParen;
 begin
   if FState = bsOk then
     Raise Exception.Create('Logic operator required');
   Inc(FOpenParen);
-  FStringBuilder.Append('(');
-  FState := bsOK;
-  result := self;
+  AppendStr('(');
+  FState := bsPending;
 end;
 
 // End parenthesis (grouping terms)
-function TXEROQueryBuilder.EndParen : TXEROQueryBuilder;
+procedure TXEROQueryBuilder.EndParen;
 begin
   if FState = bsPending then
     Raise Exception.Create('Expected expression');
@@ -1282,8 +1307,8 @@ begin
   if FOpenParen = 0 then
     Raise Exception.Create('No open parenthesis');
   Dec(FOpenParen);
-  FStringBuilder.Append(')');
-  result := self;
+  AppendStr(')');
+  FState := bsOK;
 end;
 
 end.
