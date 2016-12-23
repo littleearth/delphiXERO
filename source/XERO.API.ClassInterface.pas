@@ -253,7 +253,7 @@ type
     The generic implementation TXEROObjectList is there to provide the implementation
     via a generics TList.
   }
-  TXEROObjectListBase = class
+  TXEROObjectListBase = class(TPersistent)
   protected
     function GetXEROObject(idx : integer) : TXEROObject; virtual; abstract;
   public
@@ -301,11 +301,12 @@ type
   protected
     FList : Generics.Collections.TObjectList<XOBJ>;
     function GetXEROObject(idx : integer) : TXEROObject; override;
+    function rItems(idx : integer): XOBJ;
   public
     procedure AfterConstruction; override;
     Procedure BeforeDestruction; override;
 
-    procedure Assign( List :  TXEROObjectList<XOBJ>);
+    procedure Assign( ASource : TPersistent); override;
 
     procedure Insert(Index: Integer; const Value: XOBJ); inline;
     function Add(const Value: XOBJ): Integer; inline;
@@ -320,6 +321,7 @@ type
 
     function GetEnumerator : Generics.Collections.TObjectList<XOBJ>.TEnumerator;
     property List: Generics.Collections.TObjectList<XOBJ> read FList;
+    property Items[idx : integer] : XOBJ read rItems; default;
   end;
 
   TXeroOrganisationType = (
@@ -3995,26 +3997,32 @@ begin
     XEROItems[idx].IsNew := newVal;
 end;
 
-
 { TXEROObjectList<XOBJ> }
 
-procedure TXEROObjectList<XOBJ>.Assign(List: TXEROObjectList<XOBJ>);
+procedure TXEROObjectList<XOBJ>.Assign( ASource : TPersistent);
 var
   cur, clone : XOBJ;
+  src : TXEROObjectList<XOBJ>;
 begin
-  Clear;
-
-  for cur in List do
+  if ASource is TXEROObjectList<XOBJ> then
   begin
-    clone := XOBJ.Create;
-    try
-      clone.Assign(cur);
-      list.Add(clone);
-      clone := nil;
-    finally
-      FreeAndNil(clone);
+    src := TXEROObjectList<XOBJ>(ASource);
+    Clear;
+
+    for cur in src.List do
+    begin
+      clone := XOBJ.Create;
+      try
+        clone.Assign(cur);
+        List.Add(clone);
+        clone := nil;
+      finally
+        FreeAndNil(clone);
+      end;
     end;
-  end;
+  end
+  else
+    inherited Assign(ASource);
 end;
 
 class function TXEROObjectList<XOBJ>.PropItemName : String;
@@ -4064,6 +4072,11 @@ end;
 function TXEROObjectList<XOBJ>.AddXEROObject( AObj : TXEROObject) : integer;
 begin
   result := FList.Add(AObj as XOBJ);
+end;
+
+function TXEROObjectList<XOBJ>.rItems(idx : integer): XOBJ;
+begin
+  result := FList.Items[idx];
 end;
 
 class function TXEROObjectList<XOBJ>.CreateListObject : TXEROObject;
