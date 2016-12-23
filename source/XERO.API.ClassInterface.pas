@@ -489,6 +489,45 @@ type
     property ExternalLinks : TXEROExternalLinkList read FExternalLinks write wExternalLinks;
   end;
 
+  TXEROAccountClass =(
+    xacNotSet,
+    xacAsset,
+    xacEquity,
+    xacExpense,
+    xacLiability,
+    xacRevenue
+  );
+  TXEROAccountType = (
+    xatNotSet,
+    xatBank,
+    xatCurrentAsset,
+    xatCurrentLiability,
+    xatDepreciation,
+    xatDirectCosts,
+    xatEquity,
+    xatExpense,
+    xatFixedAsset,
+    xatInventoryAsset,
+    xatLiability,
+    xatNonCurrentAsset,
+    xatOtherIncome,
+    xatOverhead,
+    xatPrepayment,
+    xatRevenue,
+    xatSale,
+    xatNonCurrentLiability,
+    xatPAYGLiability,
+    xatSuperannuationExpense,
+    xatSuperannuationLiability,
+    xatWagesExpense,
+    xatWagesPayableLiability
+  );
+  TXEROAccountStatus = (
+    xasNotSet,
+    xasActive,
+    xasArchived
+  );
+
   TXEROAccountField = (
     xafAccountID,
     xafCode,
@@ -526,6 +565,13 @@ type
 
     // Can output a conditional field.
     function CanOutField( Field : integer; mode : TXEROSerialiseOutputMode) : boolean; override;
+
+    function rAccountType: TXEROAccountType;
+    procedure wAccountType(NewVal: TXEROAccountType);
+    function rStatus: TXEROAccountStatus;
+    procedure wStatus(NewVal: TXEROAccountStatus);
+    function rAccountClass: TXEROAccountClass;
+    procedure wAccountClass(NewVal: TXEROAccountClass);
   public
     procedure Clear; override;
     procedure Assign( ASource : TPersistent); override;
@@ -537,13 +583,20 @@ type
     property Code : String index ord(xafCode) read rStringVal write wStringVal;
     // Name of account (max length = 150)
     property AccountName : String index ord(xafName) read rStringVal write wStringVal;
+
     // See Account Types
-    property AccountType : String index ord(xafType) read rStringVal write wStringVal;
+    property AccountType : TXEROAccountType read rAccountType write wAccountType;
+
+    // See Account Types
+    property AccountTypeString : String index ord(xafType) read rEnumStgVal write wEnumStgVal;
+
     // For bank accounts only (Account Type BANK)
     property BankAccountNumber : String index ord(xafBankAccountNumber) read rStringVal write wStringVal;
 
     // Accounts with a status of ACTIVE can be updated to ARCHIVED. See Account Status Codes
-    property Status : String index ord(xafStatus) read rStringVal write wStringVal;
+    property Status : TXEROAccountStatus read rStatus write wStatus;
+    property StatusString : String index ord(xafStatus) read rEnumStgVal write wEnumStgVal;
+
     // Description of the Account. Valid for all types of accounts except bank accounts (max length = 4000)
     property Description : String index ord(xafDescription) read rStringVal write wStringVal;
     // For bank accounts only. See Bank Account types
@@ -556,8 +609,11 @@ type
     property EnablePaymentsToAccount : Boolean index ord(xafEnablePaymentsToAccount) read rBooleanVal write wBooleanVal;
     // Boolean - describes whether account code is available for use with expense claims
     property ShowInExpenseClaims : Boolean index ord(xafShowInExpenseClaims) read rBooleanVal write wBooleanVal;
+
     // See Account Class Types
-    property AccountClass : String index ord(xafClass) read rStringVal write wStringVal;
+    property AccountClass : TXEROAccountClass read rAccountClass write wAccountClass;
+    property AccountClassString : String index ord(xafClass) read rEnumStgVal write wEnumStgVal;
+
     // If this is a system account then this element is returned. See System Account types. Note that non-system accounts may have this element set as either "" or null.
     property SystemAccount : String index ord(xafSystemAccount) read rStringVal write wStringVal;
     // Shown if set
@@ -1049,16 +1105,16 @@ CAccountProperties : array[ord(low(TXEROAccountField))..ord(high(TXEROAccountFie
   ( PropType: xptString;    PropName: 'AccountID';              PropDefault: ''; PropUsage: [xpuReqUpdate, xpuUpdate];),
   ( PropType: xptString;    PropName: 'Code';                   PropDefault: ''; PropUsage: [xpuReqNew, xpuUpdate];),
   ( PropType: xptString;    PropName: 'Name';                   PropDefault: ''; PropUsage: [xpuReqNew, xpuUpdate];),
-  ( PropType: xptString;    PropName: 'Type';                   PropDefault: ''; PropUsage: [xpuReqNew, xpuUpdate];),
+  ( PropType: xptEnum;      PropName: 'Type';                   PropDefault: ''; PropUsage: [xpuReqNew, xpuUpdate];),
   ( PropType: xptString;    PropName: 'BankAccountNumber';      PropDefault: ''; PropUsage: [xpuReqNew, xpuUpdate, xpuConditional];),
-  ( PropType: xptString;    PropName: 'Status';                 PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank];),
+  ( PropType: xptEnum;      PropName: 'Status';                 PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank];),
   ( PropType: xptString;    PropName: 'Description';            PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank];),
   ( PropType: xptString;    PropName: 'BankAccountType';        PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuConditional];),
   ( PropType: xptString;    PropName: 'CurrencyCode';           PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuConditional];),
   ( PropType: xptString;    PropName: 'TaxType';                PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank];),
   ( PropType: xptBoolean;   PropName: 'EnablePaymentsToAccount';PropDefault: ''; PropUsage: [xpuNew, xpuUpdate];),
   ( PropType: xptBoolean;   PropName: 'ShowInExpenseClaims';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate];),
-  ( PropType: xptString;    PropName: 'Class';                  PropDefault: ''; PropUsage: [];),
+  ( PropType: xptEnum;      PropName: 'Class';                  PropDefault: ''; PropUsage: [];),
   ( PropType: xptString;    PropName: 'SystemAccount';          PropDefault: ''; PropUsage: [];),
   ( PropType: xptString;    PropName: 'ReportingCode';          PropDefault: ''; PropUsage: [];),
   ( PropType: xptString;    PropName: 'ReportingCodeName';      PropDefault: ''; PropUsage: [];),
@@ -1074,7 +1130,6 @@ CManualJournalLineProperties : array[ord(low(TXEROManualJournalLineField))..ord(
   ( PropType: xptList;      PropName: 'Tracking';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate];),
   ( PropType: xptCurrency;  PropName: 'TaxAmount';   PropDefault: ''; PropUsage: [];)
 );
-
 
 CManualJournalProperties : array[ord(low(TXEROManualJournalField))..ord(high(TXEROManualJournalField))] of TXEROPropertyEntry =  (
   ( PropType: xptString;   PropName: 'ManualJournalID';          PropDefault: ''; PropUsage: [xpuReqUpdate];),
@@ -1147,8 +1202,59 @@ var
   CXEROStatusType : array[TXEROStatus] of string = (
     '', 'ACTIVE', 'DELETED', 'ARCHIVED'
     );
+  CXEROAccountClassType : array [TXEROAccountClass] of string =
+  ( '', 'ASSET', 'EQUITY', 'EXPENSE', 'LIABILITY', 'REVENUE');
+  CXEROAccountTypeType : array [TXEROAccountType] of string = (
+    '',
+    'BANK',
+    'CURRENT',
+    'CURRLIAB',
+    'DEPRECIATN',
+    'DIRECTCOSTS',
+    'EQUITY',
+    'EXPENSE',
+    'FIXED',
+    'INVENTORY',
+    'LIABILITY',
+    'NONCURRENT',
+    'OTHERINCOME',
+    'OVERHEADS',
+    'PREPAYMENT',
+    'REVENUE',
+    'SALES',
+    'TERMLIAB',
+    'PAYGLIABILITY',
+    'SUPERANNUATIONEXPENSE',
+    'SUPERANNUATIONLIABILITY',
+    'WAGESEXPENSE',
+    'WAGESPAYABLELIABILITY'
+  );
+  CXEROAccountStatustype : array [TXEROAccountStatus] of string = (
+    '', 'ACTIVE', 'ARCHIVED'
+  );
 
 function DateTimeAsJSONString(ADateTime : TDateTime; forDisplay : boolean) : string; forward;
+
+function XEROOrganisationTypeAsEnum( stg : String) : TXeroOrganisationType;
+var
+  idx : TXeroOrganisationType;
+begin
+  result := low(TXeroOrganisationType);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, COrganisationType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROOrganisationTypeAsString( enumVal : Integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXeroOrganisationType))) then
+    enumVal := ord(low(TXeroOrganisationType));
+  result := COrganisationType[TXeroOrganisationType(enumVal)];
+end;
 
 function XEROStatusAsEnum( Status : String) : TXEROStatus;
 var
@@ -1164,6 +1270,76 @@ begin
     end;
   end;
 end;
+function XEROStatusAsString( enumVal : Integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROStatus))) then
+    enumVal := ord(low(TXEROStatus));
+  result := CXEROStatusType[TXEROStatus(enumVal)];
+end;
+
+function XEROAccountClassAsEnum( stg : String) : TXEROAccountClass;
+var
+  idx : TXEROAccountClass;
+begin
+  result := low(TXEROAccountClass);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROAccountClassType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROAccountClassAsString( enumVal : Integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROAccountClass))) then
+    enumVal := ord(low(TXEROAccountClass));
+  result := CXEROAccountClassType[TXEROAccountClass(enumVal)];
+end;
+
+function XEROAccountTypeAsEnum( stg : String) : TXEROAccountType;
+var
+  idx : TXEROAccountType;
+begin
+  result := low(TXEROAccountType);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROAccountTypeType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROAccountTypeAsString( enumVal : Integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROAccountType))) then
+    enumVal := ord(low(TXEROAccountType));
+  result := CXEROAccountTypeType[TXEROAccountType(enumVal)];
+end;
+
+function XEROAccountStatusAsEnum( stg : String) : TXEROAccountStatus;
+var
+  idx : TXEROAccountStatus;
+begin
+  result := low(TXEROAccountStatus);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROAccountStatusType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROAccountStatusAsString( enumVal : Integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROAccountStatus))) then
+    enumVal := ord(low(TXEROAccountStatus));
+  result := CXEROAccountStatusType[TXEROAccountStatus(enumVal)];
+end;
+
 
 constructor TXERONameEntry.Search(APropName : String);
 begin
@@ -3198,25 +3374,10 @@ begin
 end;
 
 class function TXEROOrganisation.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
-var
-  idx,
-  newOrgVal : TXeroOrganisationType;
 begin
   case AField of
     ord(xofOrganisationType),
-    ord(xofOrganisationEntityType):
-      begin
-        newOrgVal :=  xotNotSet;
-        for idx := low(COrganisationType) to high(COrganisationType) do
-        begin
-          if CompareText(COrganisationType[idx], StgVal) = 0 then
-          begin
-            newOrgVal := idx;
-            break;
-          end;
-        end;
-        result := ord(newOrgVal);
-      end;
+    ord(xofOrganisationEntityType): result := ord(XEROOrganisationTypeAsEnum(stgVal));
   else
     result := inherited PropStringAsEnum(AField, StgVal);
   end;
@@ -3226,12 +3387,7 @@ class function TXEROOrganisation.PropEnumAsString( AField : Word; IntVal : Integ
 begin
   case AField of
     ord(xofOrganisationType),
-    ord(xofOrganisationEntityType):
-      begin
-        if (IntVal < 0) or (intVal > ord(high(TXeroOrganisationType))) then
-          IntVal := ord(xotNotSet);
-        result := COrganisationType[TXeroOrganisationType(IntVal)];
-      end;
+    ord(xofOrganisationEntityType): result := XEROOrganisationTypeAsString(intVal);
   else
     result := inherited PropEnumAsString(AField, IntVal);
   end;
@@ -3327,12 +3483,24 @@ end;
 
 class function TXEROAccount.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
 begin
-  result := inherited PropStringAsEnum(AField, StgVal);
+  case AField of
+    ord(xafClass): result := ord(XEROAccountClassAsEnum(stgVal));
+    ord(xafType):  result := ord(XEROAccountTypeAsEnum(stgVal));
+    ord(xafStatus):result := ord(XEROAccountStatusAsEnum(stgVal));
+  else
+    result := inherited PropStringAsEnum(AField, StgVal);
+  end;
 end;
 
 class function TXEROAccount.PropEnumAsString( AField : Word; IntVal : Integer) : string;
 begin
-  result := inherited PropEnumAsString(AField, IntVal);
+  case AField of
+    ord(xafClass): result := XEROAccountClassAsString(IntVal);
+    ord(xafType):  result := XEROAccountTypeAsString(intVal);
+    ord(xafStatus):result := XEROAccountStatusAsString(intVal);
+  else
+    result := inherited PropEnumAsString(AField, IntVal);
+  end;
 end;
 
 class function TXEROAccount.PropTypeCount( APropType : TXEROPropertyType) : integer;
@@ -3360,6 +3528,36 @@ begin
   end;
 end;
 
+function TXEROAccount.rAccountType: TXEROAccountType;
+begin
+  result := TXEROAccountType(rIntegerVal(ord(xafType)));
+end;
+
+procedure TXEROAccount.wAccountType(NewVal: TXEROAccountType);
+begin
+  wIntegerVal(ord(xafType), ord(newVal));
+end;
+
+function TXEROAccount.rStatus: TXEROAccountStatus;
+begin
+  result := TXEROAccountStatus(rIntegerVal(ord(xafStatus)));
+end;
+
+procedure TXEROAccount.wStatus(NewVal: TXEROAccountStatus);
+begin
+  wIntegerVal(ord(xafStatus), ord(newVal));
+end;
+
+function TXEROAccount.rAccountClass: TXEROAccountClass;
+begin
+  result := TXEROAccountClass(rIntegerVal(ord(xafClass)));
+end;
+
+procedure TXEROAccount.wAccountClass(NewVal: TXEROAccountClass);
+begin
+  wIntegerVal(ord(xafClass), ord(newVal));
+end;
+
 procedure TXEROAccount.Clear;
 begin
   inherited Clear;
@@ -3377,7 +3575,7 @@ begin
     ord(xafBankAccountNumber),
     ord(xafBankAccountType),
     ord(xafCurrencyCode):
-      result := CompareText(AccountType, 'BANK') = 0;
+      result := AccountType = xatBank;
   else
     result := inherited CanOutField(field, mode);
   end;
@@ -3418,12 +3616,7 @@ end;
 class function TXEROTrackingOption.PropEnumAsString( AField : Word; IntVal : Integer) : string;
 begin
   case AField of
-    ord(xtofStatus):
-      begin
-        if (intVal < 0) or (intVal > ord(high(TXEROStatus))) then
-          intVal := ord(xsNotSet);
-        result := CXEROStatusType[TXEROStatus(intVal)];
-      end;
+    ord(xtofStatus): result := XEROStatusAsString(intVal);
   else result := inherited PropEnumAsString(AField, IntVal);
   end;
 end;
