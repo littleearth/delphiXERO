@@ -54,6 +54,8 @@ contains
   XERO.Utils in '..\..\source\XERO.Utils.pas',
   XERO.MiscUtil in '..\..\source\XERO.MiscUtil.pas',
   XERO.VarUtil in '..\..\source\XERO.VarUtil.pas',
+  XERO.JSONSAX in '..\..\source\XERO.JSONSAX.pas',
+  XERO.API.ClassInterface in '..\..\source\XERO.API.ClassInterface.pas',
   XEROComponentRegister in '..\..\source\XEROComponentRegister.pas',
   XERO.API.Response.ClientDataset in '..\..\source\XERO.API.Response.ClientDataset.pas',
   XERO.API.Response.Text in '..\..\source\XERO.API.Response.Text.pas',
