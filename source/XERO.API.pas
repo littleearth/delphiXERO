@@ -237,7 +237,7 @@ private
   function GetString : String;
 
   procedure DoOp(AOp : TXDataOp;  FieldName : String; fieldValue : Variant);
-  procedure DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant);
+  procedure DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant; ProtectNull : boolean);
 public
   class function Create : TXEROQueryBuilder; static;
   procedure Init;
@@ -245,8 +245,13 @@ public
   // Standard equality/inequality between a field and a value.
   procedure Op( FieldName : String; AOp : TXDataOp; fieldValue : Variant);
 
-  // Simple string functions (contains, starts, ends)
-  procedure Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant);
+  { Simple string functions (contains, starts, ends)
+
+    With 'protectNull == true'  (the default) this surrounds the expression with ( Fieldname != null and <expression> ).
+    This is because without this protection, the query will tend to inexplicably crash.
+    For truly mandatory fields, it could be omitted, but it's safer to include it as the default.
+  }
+  procedure Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant; ProtectNull : boolean = true);
 
   // And/or/not logic operator
   procedure Logic( ALg : TXDataLogic);
@@ -1092,6 +1097,7 @@ const
   ( 'StartsWith', 'EndsWith', 'Contains');
   CODataLogic : array[TXDataLogic] of string =
   ('AND','OR', 'NOT');
+  CXNull = 'null';
 
 function IsGUID( const strVal : String) :boolean;
 const
@@ -1148,7 +1154,7 @@ begin
       AppendStr(IfThen(CastVarAsBoolean(fieldValue, true, true, false),'true','false'));
   else
     if VarIsEmpty(fieldValue) then
-      AppendStr('null')
+      AppendStr(CXNull)
     else if VarIsInteger(fieldValue) then
       AppendStr(IntToStr(CastVarAsInt(fieldValue)))
     else if VarIsRealNumber(fieldValue) then
@@ -1196,14 +1202,28 @@ begin
   OutValue(fieldValue);
 end;
 
-procedure TXEROQueryBuilder.DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant);
+procedure TXEROQueryBuilder.DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant; ProtectNull : boolean );
 begin
+  if protectNull then
+  begin
+    AppendStr('(');
+    AppendStr(FieldName);
+    AppendStr(CODataOp[xdoNotEqual]);
+    AppendStr(CXNull);
+    AppendStr(' ');
+    AppendStr(CODataLogic[xdlAnd]);
+    AppendStr(' ');
+  end;
+
   AppendStr(FieldName);
   AppendStr('.');
   AppendStr(CODataFunc[AFn]);
   AppendStr('(');
   OutValue(fieldValue);
   AppendStr(')');
+  if protectNull then
+    AppendStr(')');
+
 end;
 
 // public definitions
@@ -1249,11 +1269,11 @@ begin
 end;
 
 // Simple string functions (contains, starts, ends)
-procedure TXEROQueryBuilder.Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant);
+procedure TXEROQueryBuilder.Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant; ProtectNull : boolean = true);
 begin
   if FState = bsOk then
     Raise Exception.Create('Logic operator required');
-  DoFn(AFn, FieldName, FieldValue);
+  DoFn(AFn, FieldName, FieldValue, protectNull);
   FState := bsOK;
 end;
 
