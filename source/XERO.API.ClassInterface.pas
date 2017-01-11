@@ -922,6 +922,17 @@ type
   const OrderNone : TXEROOrder = ();
 
   type
+  XEROException = class(Exception)
+  protected
+    FCode : Integer;
+    FError : String;
+  public
+    constructor Create( ACode : integer; AError : String);
+    property Code : integer read FCode;
+    property Error : string read FError;
+  end;
+
+  type
   //: Internal HTTP action type for building URI
   THttpActionType = (hatGet, hatSend);
 
@@ -2828,7 +2839,7 @@ begin
     result := Get(AURI, AParams, respStream, ResponseCode, ErrorDetail, 0, rtJSON);
     if not result then
     begin
-      Raise Exception.CreateFmt('[%d] %s', [responseCode, ErrorDetail]);
+      Raise XEROException.Create(responseCode, ErrorDetail);
     end
     else
     begin
@@ -2873,7 +2884,7 @@ begin
     result := Get(AURI, AParams, respStream, ResponseCode, ErrorDetail, 0, rtJSON);
     if not result then
     begin
-      Raise Exception.CreateFmt('[%d] %s', [responseCode, ErrorDetail]);
+      Raise XEROException.Create(responseCode, ErrorDetail);
     end
     else
     begin
@@ -3252,9 +3263,9 @@ begin
               parser.Free;
             end;
             if loadedresponse then
-              Raise Exception.CreateFmt('[%d] %s', [errresp.ErrorNumber, errresp.ErrorMessage])
+              Raise XEROException.Create(errresp.ErrorNumber, errresp.ErrorMessage)
             else
-              Raise Exception.CreateFmt('[%d] %s', [responseCode, ErrorDetail]);
+              Raise XEROException.Create(responseCode, ErrorDetail);
           end
           else
           begin
@@ -4362,6 +4373,15 @@ begin
   finally
     FreeAndNil(mapper);
   end;
+end;
+
+{ XEROException }
+
+constructor XEROException.Create(ACode: integer; AError: String);
+begin
+  FCode := ACode;
+  FError := AError;
+  inherited CreateFmt('[%d] %s', [ACode, AError]);
 end;
 
 initialization
