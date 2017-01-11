@@ -138,6 +138,8 @@ type
   //: Getting a field for Read or Write
   TXEROFieldAccessMode = (xfamRead, xfamWrite);
 
+  TXERODescribeIdent = (xdiNone, xdiConditional, xdiForce);
+
   //: Base XERO object.
   TXEROObject = class(TPersistent)
   public
@@ -238,6 +240,9 @@ type
     function HasValidationWarnings : boolean;
     function HasValidationErrors : boolean;
 
+    // Describe any validation errors
+    function DescribeValidation(Identify : boolean; IndentLevel : integer = 0; Errors : TXEROValidationErrors =[xveError, xveWarning]) : String; virtual;
+
     // Set a field by name.  Return false if unable to find field.
     function SetField(const fieldName : String; newVal : TValue) : boolean;
 
@@ -289,6 +294,9 @@ type
 
     // Create an item for the list.
     class function CreateListObject : TXEROObject; virtual; abstract;
+
+    // Describe any validation errors
+    function DescribeValidation(Identify : boolean; IndentLevel : integer = 0; Errors : TXEROValidationErrors =[xveError, xveWarning]) : String; virtual;
 
     // Access to the XERO Objects in the list.
     property XEROItems[idx : integer] : TXEROObject read GetXEROObject;
@@ -847,6 +855,9 @@ type
     Procedure BeforeDestruction; override;
 
     procedure ResetModified; override;
+
+    // Describe any validation errors
+    function DescribeValidation(Identify : boolean; IndentLevel : integer = 0; Errors : TXEROValidationErrors =[xveError, xveWarning]) : String; override;
 
     // Identifier
     property ManualJournalID : String index ord(xmjfManualJournalID) read rStringVal write wStringVal;
@@ -1972,6 +1983,60 @@ begin
   if not assigned(FValidation) then
     FValidation := TXEROValidation.Create;
   result := FValidation;
+end;
+
+// Describe any validation errors
+function TXEROObject.DescribeValidation(Identify : boolean; IndentLevel : integer = 0; Errors : TXEROValidationErrors =[xveError, xveWarning]) : String;
+var
+  idx : integer;
+  haserrors : TXEROValidationErrors;
+  headIndent,
+  indent : String;
+  procedure AppendStrings( Msgs : TStrings);
+  var
+    msg : string;
+  begin
+    for msg in msgs do
+      result := result + #13#10 + indent + msg;
+  end;
+begin
+  haserrors := Errors * DoCheckValidation;
+
+  if haserrors = []  then
+    result := ''
+  else
+  begin
+    indent := '';
+    for idx := 1 to IndentLevel do
+      indent := indent + '  ';
+    headIndent := indent;
+    indent := indent + '  ';
+    Result := '';
+    if xveError in hasErrors then
+    begin
+      result := result +headindent+ 'Errors';
+      if Identify then
+      begin
+        if IsNew then
+          result := result + ' for new'
+        else
+          result := result + ' for '+GetReferenceID;
+      end;
+      AppendStrings(FValidation.Errors);
+    end;
+    if xveWarning in hasErrors then
+    begin
+      result := result + headIndent+ 'Warnings';
+      if Identify then
+      begin
+        if IsNew then
+          result := result + ' for new'
+        else
+          result := result + ' for '+GetReferenceID;
+      end;
+      AppendStrings(FValidation.Warnings);
+    end;
+  end;
 end;
 
 function TXEROObject.DoCheckValidation : TXEROValidationErrors;
@@ -4136,6 +4201,31 @@ begin
   result := 'ManualJournalID';
 end;
 
+// Describe any validation errors
+function TXEROManualJournal.DescribeValidation(Identify : boolean; IndentLevel : integer = 0; Errors : TXEROValidationErrors =[xveError, xveWarning]) : String;
+var
+  haserrors : TXEROValidationErrors;
+  curLine : TXEROManualJournalLine;
+begin
+  result := '';
+
+  haserrors := Errors * DoCheckValidation;
+
+  if xveError in hasErrors then
+  begin
+    result := inherited DescribeValidation(Identify, IndentLevel, [xveError]);
+    for curLine in JournalLines do
+      result := result + curLine.DescribeValidation(true, IndentLevel+1, [xveError]);
+  end;
+
+  if xveWarning in hasErrors then
+  begin
+    result := result + inherited DescribeValidation(Identify, IndentLevel, [xveWarning]);
+    for curLine in JournalLines do
+      result := result + curLine.DescribeValidation(true, IndentLevel+1, [xveWarning]);
+  end;
+end;
+
 // TXEROManualJournalList
 //
 
@@ -4199,6 +4289,20 @@ var
 begin
   for idx := 0 to Count-1 do
     XEROItems[idx].IsNew := newVal;
+end;
+
+// Describe any validation errors
+function TXEROObjectListBase.DescribeValidation(Identify : boolean; IndentLevel : integer = 0; Errors : TXEROValidationErrors =[xveError, xveWarning]) : String;
+var
+  idx : integer;
+begin
+  result := '';
+  for idx := 0 to Count-1 do
+  begin
+    if result <> '' then
+      result := result + #13#10;
+    result := result + XEROItems[idx].DescribeValidation(true, IndentLevel+1);
+  end;
 end;
 
 { TXEROObjectList<XOBJ> }
