@@ -44,8 +44,7 @@ type
       var AFieldType: TFieldType; var ASize: Integer); virtual;
     function ImportXMLData(AXMLNodeList: TXmlNodeList;
       AErrorLog: TStrings): Boolean;
-    procedure SetResponse(AResponse: string; AResult: Boolean = true;
-      AErrorMessage: string = ''); override;
+    procedure SetResponse( AResult :boolean; ACode : Integer; ADetail : String); override;
     function GetMasterFields: string;
     procedure SetMasterFields(AValue: string);
     property MasterListNodeName: string read FMasterListNodeName
@@ -497,16 +496,14 @@ begin
   end;
 end;
 
-procedure TXEROResponseDatasetBase.SetResponse(AResponse: string;
-  AResult: Boolean = true; AErrorMessage: string = '');
+procedure TXEROResponseDatasetBase.SetResponse( AResult :boolean; ACode : Integer; ADetail : String);
 begin
+  inherited SetResponse(AResult, ACode, ADetail);
   if AResult then
   begin
-    XMLToDataset(AResponse, AResult, AErrorMessage);
+    XMLToDataset(ToString, AResult, ADetail);
   end;
-  inherited SetResponse(AResponse, AResult, AErrorMessage);
 end;
-
 
 // TXEROResponseDataset
 

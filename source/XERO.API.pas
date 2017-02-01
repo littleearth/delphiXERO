@@ -40,8 +40,14 @@ unit XERO.API;
 interface
 
 uses
-  System.SysUtils,
-  Classes, IdHTTP, XERO.CipherRSA;
+  // System
+  System.SysUtils, System.Classes, System.Variants,
+
+  // Indy
+  IdHTTP, IdIOHandler,
+
+  // XERO
+  XERO.CipherRSA;
 
 const
   XERO_API_BASE_URL = 'https://api.xero.com/api.xro/2.0/';
@@ -89,8 +95,11 @@ type
     FLogLevel: TLogLevel;
     FOnLog: TOnLog;
     FXEROAppDetails: TXEROAppDetails;
+    FSSLHandler : TIdIOHandler;
+    FHTTPClient : TIdHTTP;
   protected
     procedure Log(AMessage: string);
+    function HasLog(Level : TLogLevel) : boolean;
     procedure Debug(AProcedure: string; AMessage: string);
     procedure Error(AMessage: string); overload;
     procedure Error(AException: Exception); overload;
@@ -109,21 +118,36 @@ type
       : string; overload;
     function OAuthTimeStamp: string;
     procedure OAuthSignRequest(const aRequest: TIdHTTPRequest;
-      const aMethod: string; const AURL: string; const AParams: TStringList;
+      const aMethod: string; const AURL: string; const AParams: TStrings;
       const AConsumerKey: string; const AToken: string;
       const aConsumerSecret: string; const aTokenSecret: string); overload;
     procedure OAuthSignRequest(const aRequest: TIdHTTPRequest;
-      const aMethod: string; const AURL: string; const AParams: TStringList;
+      const aMethod: string; const AURL: string; const AParams: TStrings;
       const AConsumerKey: string; const AToken: string;
       const APrivateKey: string); overload;
     procedure ValidateSettings; virtual;
+
     function Get(AURL: string; AParams: string; var AResponse: string;
       ALastModified: TDateTime = 0;
-      AResponseType: TResponseType = rtXML): Boolean;
+      AResponseType: TResponseType = rtXML): Boolean; overload;
+
+    function Get(AURL: string; AParams: TStrings; AResponse: TStream;
+      var ResponseCode : integer; var ErrorDetail : string;
+      ALastModified: TDateTime = 0;
+      AResponseType: TResponseType = rtXML): Boolean; overload;
+
+    function Post(AURL :String; AParams : TStrings; AResponse : TStream;
+      var ResponseCode : Integer; var ErrorDetail : String;
+      AResponseType : TResponseType = rtXML): boolean;
+
     procedure SetXEROAppDetails(AXEROAppDetails: TXEROAppDetails);
     function GetXEROAppDetails: TXEROAppDetails;
+
+    function HTTPClient : TIdHTTP;
   public
     constructor Create(AOwner: TComponent); override;
+
+    Procedure BeforeDestruction; override;
 
   published
     property LogLevel: TLogLevel read FLogLevel write FLogLevel;
@@ -135,19 +159,29 @@ type
 type
   TXEROResponseBase = class(TComponent)
   private
-    FResponse: string;
+    FResponse: TMemoryStream;
+    FResponseCode : integer;
     FResult: Boolean;
     FErrorMessage: string;
     FResponseType: TResponseType;
   protected
     function GetDefaultResponseType: TResponseType; virtual;
-    procedure SetResponse(AResponse: string; AResult: Boolean = true;
-      AErrorMessage: string = ''); virtual;
+
+    procedure SetResponse( AResult :boolean; ACode : Integer; ADetail : String); virtual;
+
     property ResponseType: TResponseType read FResponseType write FResponseType;
+    function rStream: TStream;
   public
-    constructor Create(AOwner: TComponent); override;
+    procedure AfterConstruction; override;
+    Procedure BeforeDestruction; override;
+
+    procedure ClearStream;
+
+    property Stream : TStream read rStream;
+
     function AsString: string;
     property Result: Boolean read FResult;
+    property ResponseCode: integer read FResponseCode;
     property ErrorMessage: string read FErrorMessage;
   end;
 
@@ -173,17 +207,79 @@ type
 
   end;
 
+TXDataOp =
+  ( xdoEqual, xdoLess, xdoGreater, xdoLessEqual, xdoGreaterEqual, xdoNotEqual);
+TXDataFunc =
+  ( xdfStarts, xdfEnds, xdfContains);
+TXDataLogic =
+  ( xdlAnd, xdlOr, xdlNot);
+
+TBuilderState = (bsInit, bsOk, bsPending);
+
+{: Create a XERO 'DotNet' query string.
+  @Example
+    qb := TXEROQueryBuilder.Create;
+    qb.Op(xdoEqual, 'URL', 'http://place.com/url');
+    qb.Logic(xdlOr);
+    qb.Fn(xdfContains, 'Narration', 'Friend');
+}
+TXEROQueryBuilder = record
+private
+
+  FBuildString : String;
+  FLen, FCapacity : integer;
+
+  FOpenParen : Integer;
+  FState : TBuilderState;
+  procedure AppendStr( const strVal : String);
+
+  procedure OutValue( fieldValue : Variant; ForceString: Boolean = false);
+  function GetString : String;
+
+  procedure DoOp(AOp : TXDataOp;  FieldName : String; fieldValue : Variant);
+  procedure DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant; ProtectNull : boolean);
+public
+  class function Create : TXEROQueryBuilder; static;
+  procedure Init;
+
+  // Standard equality/inequality between a field and a value.
+  procedure Op( FieldName : String; AOp : TXDataOp; fieldValue : Variant);
+
+  { Simple string functions (contains, starts, ends)
+
+    With 'protectNull == true'  (the default) this surrounds the expression with ( Fieldname != null and <expression> ).
+    This is because without this protection, the query will tend to inexplicably crash.
+    For truly mandatory fields, it could be omitted, but it's safer to include it as the default.
+  }
+  procedure Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant; ProtectNull : boolean = true);
+
+  // And/or/not logic operator
+  procedure Logic( ALg : TXDataLogic);
+
+  // Begin parenthesis (grouping terms)
+  procedure StartParen;
+  // End parenthesis (grouping terms)
+  procedure EndParen;
+
+  // Retrieve the value as a string for an OData query.
+  property AsString : String read GetString;
+end;
+
+
 implementation
 
-uses Windows, IdGlobal, IdHMACSHA1, IdURI, XERO.HugeInt, XERO.Base64,
-  XERO.RSAUtils, XERO.Utils, IdBaseComponent, IdComponent, IdTCPConnection,
-  IdTCPClient, IdIOHandler, IdIOHandlerSocket, IdIOHandlerStack, IdSSL,
-  IdSSLOpenSSL;
+uses
+  // System
+  Windows, System.DateUtils, System.StrUtils,
 
-function TzSpecificLocalTimeToSystemTime(lpTimeZoneInformation
-  : PTimeZoneInformation; var lpLocalTime, lpUniversalTime: TSystemTime): BOOL;
-  stdcall; external kernel32;
+  // Indy
+  IdGlobal, IdHMACSHA1, IdURI, IdSSL, IdSSLOpenSSL,
+  IdBaseComponent, IdComponent, IdTCPConnection,
+  IdTCPClient, IdIOHandlerSocket, IdIOHandlerStack,
 
+  // XERO
+  XERO.HugeInt, XERO.Base64, XERO.RSAUtils, XERO.Utils,
+  XERO.MiscUtil, XERO.VarUtil;
 
 // TXEROAppDetails
 
@@ -234,11 +330,25 @@ begin
 end;
 
 // TXEROAPIBase
+//
+Procedure TXEROAPIBase.BeforeDestruction;
+begin
+  if assigned(FHTTPClient) then
+    FHTTPClient.IOHandler := nil;
+  FreeAndNil(FSSLHandler);
+  FreeAndNil(FHTTPClient);
+  inherited;
+end;
 
 procedure TXEROAPIBase.Log(AMessage: string);
 begin
   if Assigned(FOnLog) then
     FOnLog(Self, AMessage);
+end;
+
+function TXEROAPIBase.HasLog(Level : TLogLevel) : boolean;
+begin
+  result := assigned(FOnLog) and (ord(level) >= ord(FLogLevel));
 end;
 
 procedure TXEROAPIBase.Debug(AProcedure: string; AMessage: string);
@@ -265,8 +375,6 @@ begin
 end;
 
 function TXEROAPIBase.NormalisedURL(const AURL: string): string;
-var
-  i: integer;
 begin
   Result := AURL;
 
@@ -276,7 +384,7 @@ begin
   if (Pos(':443/', Result) <> 0) and (Copy(Result, 1, 6) = 'https:') then
     Result := StringReplace(Result, ':443/', '/', []);
 
-  Result := UTF8Encode(Result);
+  Result := String(UTF8Encode(Result));
 end;
 
 function TXEROAPIBase.GetGUIDString: string;
@@ -292,11 +400,10 @@ function TXEROAPIBase.OAuthBaseString(const aMethod: string; const AURL: string;
   const AParams: TStrings): string;
 
 var
-  i, idx: integer;
+  i : integer;
   params: TStringList;
   s: string;
   url: string;
-  key: string;
   par: string;
   pars: string;
 begin
@@ -306,7 +413,7 @@ begin
     params.Assign(AParams);
 
     // Now identify any query parameters that may be encoded in the URL
-    url := UTF8Encode(AURL);
+    url := String(UTF8Encode(AURL));
     i := Pos('?', url);
     if i <> 0 then
     begin
@@ -360,8 +467,8 @@ begin
     // Now compose the OAuth Base String:  METHOD&URL&PARAMS
     s := '';
     for i := 0 to Pred(params.Count) do
-      s := s + OAuthEncode(UTF8Encode(params.Names[i])) + '=' +
-        OAuthEncode(UTF8Encode(params.ValueFromIndex[i])) + '&';
+      s := s + OAuthEncode(String(UTF8Encode(params.Names[i]))) + '=' +
+          OAuthEncode(String(UTF8Encode(params.ValueFromIndex[i]))) + '&';
 
     SetLength(s, Length(s) - 1);
 
@@ -395,7 +502,7 @@ var
 begin
   RSAPublicKeyFromPrivate(aKey, key);
   try
-    Result := RSAPKCS1v15AsBase64(aBaseString, key);
+    Result := String(RSAPKCS1v15AsBase64(aBaseString, key));
   finally
     RSAPublicKeyFinalise(key);
   end;
@@ -408,7 +515,7 @@ var
   key: TRSAPrivateKey;
 begin
 
-  RSAReadASN1PrivateKey(aKey, key);
+  RSAReadASN1PrivateKey(AnsiString(aKey), key);
   try
     Result := OAuthSignature(aBaseString, key);
 
@@ -426,7 +533,7 @@ var
   hmac: TIdHMACSHA1;
   hash: TIdBytes;
 begin
-  key := UTF8Encode(aConsumerSecret + '&' + aTokenSecret);
+  key := String(UTF8Encode(aConsumerSecret + '&' + aTokenSecret));
 
   hmac := TIdHMACSHA1.Create;
   try
@@ -447,23 +554,17 @@ function TXEROAPIBase.OAuthTimeStamp: string;
 const
   UNIX_BASE = 25569.0;
 var
-  local: TSystemTime;
-  gmt: TSystemTime;
   dt: TDateTime;
   ts: integer;
 begin
-  DateTimeToSystemTime(Now, local);
-
-  Win32Check(TzSpecificLocalTimeToSystemTime(NIL, local, gmt));
-
-  dt := SystemTimeToDateTime(gmt);
+  dt := TTimeZone.Local.ToUniversaltime(now);
   ts := Round((dt - UNIX_BASE) * 86400);
   Result := IntToStr(ts);
 end;
 
 { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
 procedure TXEROAPIBase.OAuthSignRequest(const aRequest: TIdHTTPRequest;
-  const aMethod: string; const AURL: string; const AParams: TStringList;
+  const aMethod: string; const AURL: string; const AParams: TStrings;
   const AConsumerKey: string; const AToken: string;
   const aConsumerSecret: string; const aTokenSecret: string);
 var
@@ -541,7 +642,7 @@ end;
 
 { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
 procedure TXEROAPIBase.OAuthSignRequest(const aRequest: TIdHTTPRequest;
-  const aMethod: string; const AURL: string; const AParams: TStringList;
+  const aMethod: string; const AURL: string; const AParams: TStrings;
   const AConsumerKey: string; const AToken: string; const APrivateKey: string);
 var
   i: integer;
@@ -609,6 +710,18 @@ begin
   LogLevel := logInformation;
 end;
 
+function TXEROAPIBase.HTTPClient : TIdHTTP;
+begin
+  if not assigned(FHTTPClient) then
+    FHTTPClient := TIdHTTP.Create(self);
+  if not assigned(FSSLHandler) then
+  begin
+    FSSLHandler := TIdSSLIOHandlerSocketOpenSSL.Create(self);
+    FHTTPClient.IOHandler := FSSLHandler;
+  end;
+  result := FHTTPClient;
+end;
+
 procedure TXEROAPIBase.ValidateSettings;
 begin
   if Assigned(FXEROAppDetails) then
@@ -638,106 +751,244 @@ end;
 function TXEROAPIBase.Get(AURL: string; AParams: string; var AResponse: string;
   ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML): Boolean;
 var
-  HTTPClient: TIdHTTP;
-  IdSSLIOHandlerSocketOpenSSL: TIdSSLIOHandlerSocketOpenSSL;
   HTTPStream: TStringStream;
+  ResponseCode : integer;
+  ErrorDetail : string;
   FormParams: TStringList;
 begin
-  ValidateSettings;
-  Result := False;
-  HTTPClient := TIdHTTP.Create(nil);
-  IdSSLIOHandlerSocketOpenSSL := TIdSSLIOHandlerSocketOpenSSL.Create(nil);
-  FormParams := TStringList.Create;
+  FormParams := nil;
   HTTPStream := TStringStream.Create('');
   try
-    try
-      HTTPClient.IOHandler := IdSSLIOHandlerSocketOpenSSL;
-
+    if AParams <> '' then
+    begin
+      FormParams := TStringList.Create;
       FormParams.Text := AParams;
-
-      Debug('Get', Format('URL: %s, Params: %s', [AURL, AParams]));
-
-      case FXEROAppDetails.OAuthSignatureMethod of
-        oaHMAC:
-          begin
-            OAuthSignRequest(HTTPClient.Request, 'GET', AURL, FormParams,
-              FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
-              FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
-          end;
-
-        oaRSA:
-          begin
-            OAuthSignRequest(HTTPClient.Request, 'GET', AURL, FormParams,
-              FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
-              FXEROAppDetails.PrivateKey.Text);
-          end;
-      end;
-
-      case AResponseType of
-        rtXML:
-          begin
-          end;
-        rtJSON:
-          begin
-            HTTPClient.Request.Accept := 'application/json';
-          end;
-      end;
-
-      if ALastModified <> 0 then
-      begin
-        HTTPClient.Request.LastModified := ALastModified;
-      end;
-
-      Log(Format('URL: %s, Headers: %s, Accept: %s, Last Modified %s',
-        [AURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept,
-        DateTimeToStr(HTTPClient.Request.LastModified)]));
-
-      HTTPClient.Get(AURL, HTTPStream);
-
-      HTTPStream.Position := 0;
-
-      AResponse := HTTPStream.ReadString(HTTPStream.Size);
-
-      Result := true;
-
-    except
-      on E: Exception do
-      begin
-        try
-          HTTPStream.Position := 0;
-          AResponse := HTTPStream.ReadString(HTTPStream.Size);
-        except
-
-        end;
-        AResponse := Format('ERROR: %s (%s)', [E.Message, AResponse]);
-      end;
     end;
+    HTTPStream.Position := 0;
+    result := Get(AURL, FormParams, HTTPStream, ResponseCode, ErrorDetail, ALastModified, AResponseType);
 
-    Debug('Get', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
-      AResponse);
+    AResponse := HTTPStream.ReadString(HTTPStream.Size);
+    if not result then
+      AResponse := Format('ERROR: %s (%s)', [ErrorDetail, AResponse]);
 
   finally
     FreeAndNil(HTTPStream);
     FreeAndNil(FormParams);
-    FreeAndNil(HTTPClient);
-    FreeAndNil(IdSSLIOHandlerSocketOpenSSL);
   end;
 end;
+
+function TXEROAPIBase.Get(AURL: string; AParams: TStrings; AResponse: TStream; var ResponseCode : integer; var ErrorDetail : string; ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML): Boolean;
+var
+  strStream : TStringStream;
+begin
+  ValidateSettings;
+  try
+    if HasLog(logDebug) then
+    begin
+      if assigned(AParams) then
+        Debug('Get', Format('URL: %s, Params: %s', [AURL, AParams.CommaText]))
+      else
+        Debug('Get', Format('URL: %s, Params: nil', [AURL]));
+    end;
+
+    case FXEROAppDetails.OAuthSignatureMethod of
+      oaHMAC:
+        begin
+          OAuthSignRequest(HTTPClient.Request, 'GET', AURL, AParams,
+            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+            FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+        end;
+
+      oaRSA:
+        begin
+          OAuthSignRequest(HTTPClient.Request, 'GET', AURL, AParams,
+            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+            FXEROAppDetails.PrivateKey.Text);
+        end;
+    end;
+
+    case AResponseType of
+      rtXML:
+        begin
+        end;
+      rtJSON:
+        begin
+          HTTPClient.Request.Accept := 'application/json';
+        end;
+    end;
+
+    if ALastModified <> 0 then
+    begin
+      HTTPClient.Request.LastModified := ALastModified;
+    end;
+
+    Log(Format('URL: %s, Headers: %s, Accept: %s, Last Modified %s',
+      [AURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept,
+      DateTimeToStr(HTTPClient.Request.LastModified)]));
+
+    try
+      HTTPClient.Get(AURL, AResponse);
+      responseCode := HTTPClient.Response.ResponseCode;
+      ErrorDetail  := HTTPClient.Response.ResponseText;
+      Result := true;
+    except
+      on E:EIdHTTPProtocolException do
+      begin
+        ResponseCode := E.ErrorCode;
+        ErrorDetail := E.Message;
+        Result := false;
+        strStream := TStringStream.Create(E.ErrorMessage);
+        try
+          AResponse.CopyFrom(StrStream, 0);
+        finally
+          strStream.Free;
+        end;
+      end;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      ResponseCode := 10000;
+      ErrorDetail := E.Message;
+      result := false;
+    end;
+  end;
+
+  if HasLog(logDebug) then
+  begin
+
+    strStream := TStringStream.Create('');
+    try
+      strStream.CopyFrom(AResponse, 0);
+      Debug('Get', 'Result: ' + BoolToStr(Result, true)
+      + ', Response: ' + StrStream.DataString);
+    finally
+      FreeAndNil(strStream);
+    end;
+  end;
+
+end;
+
+function TXEROAPIBase.Post(AURL :String; AParams : TStrings; AResponse : TStream;
+    var ResponseCode : Integer; var ErrorDetail : String;
+    AResponseType : TResponseType = rtXML): boolean;
+var
+  strStream : TStringStream;
+begin
+  ValidateSettings;
+  try
+    if HasLog(logDebug) then
+    begin
+      if assigned(AParams) then
+        Debug('Post', Format('URL: %s, Params: %s', [AURL, AParams.CommaText]))
+      else
+        Debug('Post', Format('URL: %s, Params: nil', [AURL]));
+    end;
+
+    case FXEROAppDetails.OAuthSignatureMethod of
+      oaHMAC:
+        begin
+          OAuthSignRequest(HTTPClient.Request, 'POST', AURL, AParams,
+            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+            FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+        end;
+
+      oaRSA:
+        begin
+          OAuthSignRequest(HTTPClient.Request, 'POST', AURL, AParams,
+            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+            FXEROAppDetails.PrivateKey.Text);
+        end;
+    end;
+
+    HTTPClient.Request.ContentType := 'application/x-www-form-urlencoded';
+    case AResponseType of
+      rtXML: ;
+      rtJSON: HTTPClient.Request.Accept := 'application/json';
+    end;
+    HTTPClient.HTTPOptions := [hoForceEncodeParams];
+
+    Log(Format('URL: %s, Headers: %s, Accept: %s',
+      [AURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept ]));
+
+    try
+      HTTPClient.Post(AURL, AParams, AResponse);
+      responseCode := HTTPClient.Response.ResponseCode;
+      ErrorDetail  := HTTPClient.Response.ResponseText;
+      Result := true;
+
+    except
+      on E:EIdHTTPProtocolException do
+      begin
+        ResponseCode := E.ErrorCode;
+        ErrorDetail := E.Message;
+        // Convert error message to stream for parsing.
+        Result := false;
+        strStream := TStringStream.Create(E.ErrorMessage);
+        try
+          AResponse.CopyFrom(StrStream, 0);
+        finally
+          strStream.Free;
+        end;
+      end;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      ResponseCode := 10000;
+      ErrorDetail := E.Message;
+      result := false;
+    end;
+  end;
+
+  if HasLog(logDebug) then
+  begin
+    strStream := TStringStream.Create('');
+    try
+      strStream.CopyFrom(AResponse, 0);
+      Debug('Get', 'Result: ' + BoolToStr(Result, true)
+      + ', Response: ' + StrStream.DataString);
+    finally
+      FreeAndNil(strStream);
+    end;
+  end;
+
+end;
+
 
 
 // TXEROResponseBase
 
-procedure TXEROResponseBase.SetResponse(AResponse: string;
-  AResult: Boolean = true; AErrorMessage: string = '');
+function TXEROResponseBase.rStream: TStream;
 begin
-  FResponse := AResponse;
+  result := FResponse;
+end;
+
+procedure TXEROResponseBase.ClearStream;
+begin
+  FResponse.Clear;
+end;
+
+procedure TXEROResponseBase.SetResponse( AResult :boolean; ACode : Integer; ADetail : String);
+begin
   FResult := AResult;
-  FErrorMessage := AErrorMessage;
+  FResponseCode := ACode;
+  FErrorMessage := ADetail;
 end;
 
 function TXEROResponseBase.AsString: string;
+var
+  sr : TStreamReader;
 begin
-  Result := FResponse;
+  FResponse.Position := 0;
+  sr := TStreamReader.Create(FResponse);
+  try
+    result := sr.ReadToEnd;
+  finally
+    sr.Free;
+  end;
 end;
 
 function TXEROResponseBase.GetDefaultResponseType: TResponseType;
@@ -745,13 +996,21 @@ begin
   Result := rtXML;
 end;
 
-constructor TXEROResponseBase.Create(AOwner: TComponent);
+procedure TXEROResponseBase.AfterConstruction;
 begin
-  inherited Create(AOwner);
+  inherited;
+
   FResponseType := GetDefaultResponseType;
-  FResponse := '';
+  FResponse := TMemoryStream.Create;
   FResult := False;
   FErrorMessage := '';
+  FResponseCode := -1;
+end;
+
+Procedure TXEROResponseBase.BeforeDestruction;
+begin
+  FreeAndNil(FResponse);
+  inherited;
 end;
 
 // TXEROAPI
@@ -801,8 +1060,8 @@ function TXEROAPI.Find(AFilter: string = ''; AOrderBy: string = '';
   APage: integer = 0; ALastModified: TDateTime = 0): Boolean;
 var
   url: string;
-  params: string;
-  ResponseData: string;
+  ResponseCode : integer;
+  ErrorDetail : String;
 
 begin
   ValidateSettings;
@@ -822,17 +1081,254 @@ begin
     url := url + GetURLSeperator(url) + 'page=' + IntToStr(APage);
   end;
 
-  Result := Get(url, params, ResponseData, ALastModified,
-    FXEROResponseBase.ResponseType);
+  FXEROResponseBase.ClearStream;
+  result := Get(url, nil, FXEROResponseBase.Stream,
+    ResponseCode, ErrorDetail, ALastModified, FXEROResponseBase.ResponseType);
 
-  if Result then
+  FXEROResponseBase.SetResponse(result, ResponseCode, ErrorDetail);
+end;
+
+// TXEROQueryBuilder
+//
+const
+  CODataOp : array[TXDataOp] of string =
+  ( '==', '<', '>', '<=', '>=', '!=');
+  CODataFunc : array[TXDataFunc] of string =
+  ( 'StartsWith', 'EndsWith', 'Contains');
+  CODataLogic : array[TXDataLogic] of string =
+  ('AND','OR', 'NOT');
+  CXNull = 'null';
+
+function IsGUID( const strVal : String) :boolean;
+const
+  CPattern = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
+var
+  idx : integer;
+begin
+  result := length(strVal) = length(CPattern);
+  if result then
   begin
-    FXEROResponseBase.SetResponse(ResponseData);
-  end
-  else
-  begin
-    FXEROResponseBase.SetResponse('', False, ResponseData);
+    for idx := 1 to length(strVal) do
+    begin
+      case strVal[idx] of
+        'a'..'f', '0'..'9':
+          if CPattern[idx] = '-' then
+          begin
+            result := false;
+            break;
+          end;
+        '-':
+          if CPattern[idx] <> '-' then
+          begin
+            result := false;
+            break;
+          end;
+      else
+        result := false;
+        break;
+      end
+    end;
+
   end;
+end;
+
+// protected definitions
+
+procedure TXEROQueryBuilder.OutValue( fieldValue : Variant; ForceString: Boolean);
+var
+  dt : TDateTime;
+  strVal : String;
+begin
+  case VarType(fieldValue) of
+    varDate:
+      begin
+        dt := TDateTime(fieldValue);
+        AppendStr('DateTime(');
+        if TimeOf(dt) = 0 then
+          AppendStr(formatDatetime('yyyy,m,d', dt))
+        else
+          AppendStr(formatDatetime('yyyy,m,d,hh,nn,ss', dt));
+        AppendStr(')');
+      end;
+    varBoolean:
+      AppendStr(IfThen(CastVarAsBoolean(fieldValue, true, true, false),'true','false'));
+  else
+    if VarIsEmpty(fieldValue) then
+      AppendStr(CXNull)
+    else if VarIsInteger(fieldValue) then
+      AppendStr(IntToStr(CastVarAsInt(fieldValue)))
+    else if VarIsRealNumber(fieldValue) then
+      AppendStr(FloatToStr(CastVarAsDouble(fieldValue)))
+    else
+    begin
+      strVal := CastVarAsString(fieldValue);
+      if IsGUID(strVal) then
+      begin
+        AppendStr('Guid("');
+        AppendStr(strVal);
+        AppendStr('")');
+      end
+      else
+      begin
+        AppendStr('"');
+        AppendStr(StringReplace(StringReplace(strVal, '\' ,'\\',[rfReplaceAll]), '"', '\"',[rfReplaceAll]));
+        AppendStr('"');
+      end;
+    end;
+  end;
+end;
+
+function TXEROQueryBuilder.GetString : String;
+begin
+  if FOpenParen > 0 then
+    Raise Exception.Create('Unclosed parenthesis');
+  if FState = bsPending then
+    Raise Exception.Create('Expected expression');
+
+  if FCapacity <> FLen then
+  begin
+    FCapacity := FLen;
+    SetLength(FBuildString, FLen);
+  end;
+  result := FBuildString;
+end;
+
+procedure TXEROQueryBuilder.DoOp( AOp : TXDataOp; FieldName : String; fieldValue : Variant);
+begin
+  AppendStr(FieldName);
+  AppendStr(' ');
+  AppendStr(CODataOp[AOp]);
+  AppendStr(' ');
+  OutValue(fieldValue);
+end;
+
+procedure TXEROQueryBuilder.DoFn(AFn : TXDataFunc; FieldName : String; FieldValue : Variant; ProtectNull : boolean );
+begin
+  if protectNull then
+  begin
+    AppendStr('(');
+    AppendStr(FieldName);
+    AppendStr(CODataOp[xdoNotEqual]);
+    AppendStr(CXNull);
+    AppendStr(' ');
+    AppendStr(CODataLogic[xdlAnd]);
+    AppendStr(' ');
+  end;
+
+  AppendStr(FieldName);
+  AppendStr('.');
+  AppendStr(CODataFunc[AFn]);
+  AppendStr('(');
+  OutValue(fieldValue);
+  AppendStr(')');
+  if protectNull then
+    AppendStr(')');
+
+end;
+
+// public definitions
+//
+class function TXEROQueryBuilder.Create : TXEROQueryBuilder;
+begin
+  result.Init;
+end;
+
+procedure TXEROQueryBuilder.Init;
+begin
+  FState := bsInit;
+  FOpenParen := 0;
+  FBuildString := '';
+  FCapacity := 0;
+  FLen := 0;
+end;
+
+procedure TXEROQueryBuilder.AppendStr( const strVal : String);
+var
+  newLen, newCapacity : Integer;
+begin
+  newLen := FLen + Length(StrVal);
+  if newLen > FCapacity then
+  begin
+    newCapacity := FCapacity + 20;
+    if newLen > newCapacity then
+      newCapacity := newLen + 20;
+    SetLength(FBuildString, newCapacity);
+    FCapacity := newCapacity;
+  end;
+  Move(PChar(strVal)^, FBuildString[1+FLen], ByteLength(strVal) );
+  FLen := newLen;
+end;
+
+// Standard equality/inequality between a field and a value.
+procedure TXEROQueryBuilder.Op(FieldName : String;  AOp : TXDataOp; fieldValue : Variant);
+begin
+  if FState = bsOk then
+    Raise Exception.Create('Logic operator required');
+  DoOp(AOp, FieldName, fieldValue);
+  FState := bsOK;
+end;
+
+// Simple string functions (contains, starts, ends)
+procedure TXEROQueryBuilder.Fn(FieldName : String; AFn : TXDataFunc; FieldValue : Variant; ProtectNull : boolean = true);
+begin
+  if FState = bsOk then
+    Raise Exception.Create('Logic operator required');
+  DoFn(AFn, FieldName, FieldValue, protectNull);
+  FState := bsOK;
+end;
+
+// And/or/not logic operator
+procedure TXEROQueryBuilder.Logic( ALg : TXDataLogic);
+begin
+  case FState of
+    bsInit:
+      case Alg of
+        xdlAnd, xdlOr:
+          Raise Exception.Create('Can''t start with binary logic operator');
+      end;
+    bsPending:
+      case Alg of
+        xdlAnd, xdlOr:
+          Raise Exception.Create('Already has Logic operator');
+      end;
+    bsOK:
+      case Alg of
+        xdlNot:
+          Raise Exception.Create('Not operator not applicable here');
+      end;
+  end;
+  case Alg of
+    xdlAnd, xdlOr:
+      FState := bsPending;
+    xdlNot:
+      FState := bsPending;
+  end;
+  AppendStr(' ');
+  AppendStr(CODataLogic[Alg]);
+  AppendStr(' ');
+end;
+
+// Begin parenthesis (grouping terms)
+procedure TXEROQueryBuilder.StartParen;
+begin
+  if FState = bsOk then
+    Raise Exception.Create('Logic operator required');
+  Inc(FOpenParen);
+  AppendStr('(');
+  FState := bsPending;
+end;
+
+// End parenthesis (grouping terms)
+procedure TXEROQueryBuilder.EndParen;
+begin
+  if FState = bsPending then
+    Raise Exception.Create('Expected expression');
+
+  if FOpenParen = 0 then
+    Raise Exception.Create('No open parenthesis');
+  Dec(FOpenParen);
+  AppendStr(')');
+  FState := bsOK;
 end;
 
 end.

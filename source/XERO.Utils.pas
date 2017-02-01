@@ -37,8 +37,19 @@ begin
 end;
 
 function IsEmptyString(AValue: string): boolean;
+var
+  ch : Char;
 begin
-  Result := Trim(AValue) = '';
+  result := true;
+  for ch in Avalue do
+  begin
+    case ch of
+    ' ': ;
+    else
+      result := false;
+      break;
+    end;
+  end;
 end;
 
 function URLEncode(const AStr: String): String;
@@ -47,11 +58,12 @@ var
 begin
   Result := '';
   for i := 1 to Length(AStr) do
-    if not(AStr[i] in ['A' .. 'Z', 'a' .. 'z', '0', '1' .. '9', '-', '_', '~',
-      '.']) then
-      Result := Result + '%' + inttohex(ord(AStr[i]), 2)
-    else
+    case AStr[i] of
+    'A' .. 'Z', 'a' .. 'z', '0', '1' .. '9', '-', '_', '~', '.':
       Result := Result + AStr[i];
+    else
+      Result := Result + '%' + inttohex(ord(AStr[i]), 2);
+    end;
 end;
 
 function URLDecode(const AStr: string): string;
@@ -68,7 +80,7 @@ begin
     begin
       try
         b := Byte(StrtoInt('$' + Copy(AStr, i + 1, 2)));
-        Result := Result + ANSIChar(b);
+        Result := Result + Char(ANSIChar(b));
         Inc(i, 2);
       except
         EXIT;
