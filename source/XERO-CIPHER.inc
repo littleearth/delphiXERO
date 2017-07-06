@@ -488,6 +488,9 @@
 {$IF CompilerVersion >= 21}
   {$DEFINE DELPHI_Future}
 {$IFEND}
+{$IF CompilerVersion >= 32}// Tokyo
+  {$DEFINE DELHPI_BetterWarn}
+{$ENDIF}
 {$ENDIF}
 
 {$IFDEF DELPHI_Future}
