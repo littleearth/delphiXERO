@@ -135,8 +135,8 @@ type
   //: Indicate Special fields
   TXEROSpecialField = (xsfUID, xsfName);
 
-  //: Getting a field for Read or Write
-  TXEROFieldAccessMode = (xfamRead, xfamWrite);
+  //: Getting a field for Read or Write or Clear (Can return null or empty list)
+  TXEROFieldAccessMode = (xfamRead, xfamWrite, xfamClear);
 
   TXERODescribeIdent = (xdiNone, xdiConditional, xdiForce);
 
@@ -318,6 +318,8 @@ type
 
     procedure Insert(Index: Integer; const Value: XOBJ); inline;
     function Add(const Value: XOBJ): Integer; inline;
+
+    function ExtractIndex( AIndex : integer) : XOBJ;
 
     function AddXEROObject( AObj : TXEROObject) : integer; override;
 
@@ -909,6 +911,106 @@ type
     function GetItemLoader : TXEROObjectLoaderBase; override;
   end;
 
+  TXEROTaxComponentField = (
+    // xtxf prefix because of conflict with TXEROTrackingCategory
+    xtxfName,
+    xtxfRate,
+    xtxfIsCompound,
+    xtxfIsNonRecoverable
+  );
+
+  TXEROTaxComponent = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropObjectName : string; override;
+  public
+    // Name of Tax Component
+    property ComponentName : String index ord(xtxfName) read rStringVal write wStringVal;
+    // Tax Rate (up to 4dp)
+    property Rate : Currency index ord(xtxfRate) read rCurrencyVal write wCurrencyVal;
+
+    // Boolean to describe if Tax rate is compounded. Learn more
+    property IsCompound : boolean index ord(xtxfIsCompound) read rBooleanVal write wBooleanVal;
+    // Boolean to describe if tax rate is non-recoverable. Non-recoverable rates are only applicable to Canadian organisations.
+    property IsNonRecoverable : boolean index ord(xtxfIsNonRecoverable) read rBooleanVal write wBooleanVal;
+  end;
+
+  TXEROTaxComponentList= class(TXEROObjectList<TXEROTaxComponent>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  TXEROTaxRateField = (
+    xtrfName,
+    xtrfTaxComponents,
+    xtrfStatus,
+    xtrfReportTaxType,
+    xtrfCanApplyToAssets,
+    xtrfCanApplyToEquity,
+    xtrfCanApplyToExpenses,
+    xtrfCanApplyToLiabilities,
+    xtrfCanApplyToRevenue,
+    xtrfDisplayTaxRate,
+    xtrfEffectiveRate
+  );
+
+  TXeroTaxRate = class(TXEROObject)
+  protected
+    FTaxComponents: TXeroTaxComponentList;
+    function rTaxComponents: TXeroTaxComponentList;
+    procedure wTaxComponents(NewVal: TXeroTaxComponentList);
+    function rHasTaxComponents : boolean;
+
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropStringAsEnum( AField : Word; const StgVal : String) : integer; override;
+    class function PropEnumAsString( AField : Word; IntVal : Integer) : string; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropObjectName : string; override;
+
+  protected
+    //:Get at list field
+    function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
+  public
+    // Name of tax rate	TaxType	See Tax Types - can only be used on update calls
+    property TaxTypeName : String index ord(xtrfName) read rStringVal write wStringVal;
+    // See TaxComponents
+    property TaxComponents : TXeroTaxComponentList read rTaxComponents write wTaxComponents;
+    property HasTaxComponents: boolean read rHasTaxComponents;
+
+    // See Status Codes
+    property Status :  TXEROStatus index ord(xtrfStatus) read rXStatus write wXStatus;
+
+    // See ReportTaxTypes
+    property ReportTaxType : String index ord(xtrfReportTaxType) read rStringVal write wStringVal;
+    // Boolean to describe if tax rate can be used for asset accounts i.e. true,false
+    property CanApplyToAssets : Boolean index ord(xtrfCanApplyToAssets) read rBooleanVal write wBooleanVal;
+    // Boolean to describe if tax rate can be used for equity accounts i.e. true,false
+    property CanApplyToEquity : Boolean index ord(xtrfCanApplyToEquity) read rBooleanVal write wBooleanVal;
+    // Boolean to describe if tax rate can be used for expense accounts i.e. true,false
+    property CanApplyToExpenses : Boolean index ord(xtrfCanApplyToExpenses) read rBooleanVal write wBooleanVal;
+    // Boolean to describe if tax rate can be used for liability accounts i.e. true,false
+    property CanApplyToLiabilities : Boolean index ord(xtrfCanApplyToLiabilities) read rBooleanVal write wBooleanVal;
+    // Boolean to describe if tax rate can be used for revenue accounts i.e. true,false
+    property CanApplyToRevenue : Boolean index ord(xtrfCanApplyToRevenue) read rBooleanVal write wBooleanVal;
+    // Tax Rate (decimal to 4dp) e.g 12.5000
+    property DisplayTaxRate : Currency index ord(xtrfDisplayTaxRate) read rCurrencyVal write wCurrencyVal;
+    // Effective Tax Rate (decimal to 4dp) e.g 12.5000
+    property EffectiveRate : Currency index ord(xtrfEffectiveRate) read rCurrencyVal write wCurrencyVal;
+  end;
+
+  TXEROTaxRateList = class(TXEROObjectList<TXeroTaxRate>)
+  public
+    class function PropListName : String; override;
+  end;
+
   //: Sort direction for 'Order by'
   TXEROSortDirection = (xsdAscending, xsdDescending );
 
@@ -1020,6 +1122,13 @@ type
     // Store list of tracking categories
     function StoreTrackingCategories( categoryList, responseList : TXEROTrackingCategoryList) : boolean;
 
+    // Load Tax rate settings
+    function GetTaxRates(taxRateList : TXEROTaxRateList; const AQuery : String = '') : boolean; overload;
+    function GetTaxRates(taxRateList : TXEROTaxRateList; const AQuery : String; const AOrder : TXEROOrder; APageNo : integer = -1) : boolean; overload;
+    function GetTaxRate(taxRate : TXeroTaxRate; const AName : String) : boolean;
+
+    // Update a tax rate
+    function StoreTaxRate(taxRate: TXeroTaxRate) : boolean;
   end;
 
   { Internal loader for a list.
@@ -1180,11 +1289,29 @@ CTrackingOptionProperties : array[ord(low(TXEROTrackingOptionField))..ord(high(T
 );
 
 CTrackingCategoryOptionProperties : array[ord(low(TXEROTrackingCategoryOptionField))..ord(high(TXEROTrackingCategoryOptionField))] of TXEROPropertyEntry = (
-
   ( PropType: xptString;  PropName: 'TrackingCategoryID'; PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate, xpuSkipBlank];),
   ( PropType: xptString;  PropName: 'Name';               PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate, xpuConditional];),
   ( PropType: xptString;  PropName: 'TrackingOptionID';   PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate, xpuSkipBlank];),
   ( PropType: xptString;  PropName: 'Option';             PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate, xpuConditional];)
+);
+CTaxComponentProperties : array[ord(low(TXEROTaxComponentField))..ord(high(TXEROTaxComponentField))] of TXEROPropertyEntry = (
+  ( PropType: xptString;  PropName: 'Name';            PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptCurrency;PropName: 'Rate';            PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptboolean; PropName: 'IsCompound';      PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptboolean; PropName: 'IsNonRecoverable';PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate];)
+);
+CTaxRateProperties  : array[ord(low(TXEROTaxRateField))..ord(high(TXEROTaxRateField))] of TXEROPropertyEntry = (
+  ( PropType: xptString;  PropName: 'TaxTypeName';           PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptList;    PropName: 'TaxComponents';         PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptEnum;    PropName: 'Status';                PropDefault: 'ACTIVE'; PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptString;  PropName: 'ReportTaxType';         PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptBoolean; PropName: 'CanApplyToAssets';      PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptBoolean; PropName: 'CanApplyToEquity';      PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptBoolean; PropName: 'CanApplyToExpenses';    PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptBoolean; PropName: 'CanApplyToLiabilities'; PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptBoolean; PropName: 'CanApplyToRevenue';     PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptCurrency;PropName: 'DisplayTaxRate';        PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptCurrency; PropName: 'EffectiveRate';        PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];)
 );
 
 type
@@ -1208,7 +1335,10 @@ var
   G_OrganisationMap,
   G_AccountMap,
   G_ManualJournalMap,
-  G_ManualJournalLineMap : TXEROPropertyMap;
+  G_ManualJournalLineMap,
+  G_TaxComponentMap,
+  G_TaxRateMap
+  : TXEROPropertyMap;
 
 
   COrganisationType :array[TXeroOrganisationType] of string =
@@ -1696,7 +1826,8 @@ end;
 
 procedure TXEROObject.Assign( ASource : TPersistent);
 var
-  obj : TXEROObject;
+  srcLines, dstLines : TXEROObjectListBase;
+  obj, srcObj : TXEROObject;
   idx : integer;
 begin
   if ASource is ClassType then
@@ -1711,6 +1842,26 @@ begin
         xptEnum,
         xptInteger:  wIntegerVal(idx, obj.rIntegerVal(idx));
         xptBoolean:  wBooleanVal(idx, obj.rbooleanVal(idx));
+        xptObject:
+          begin
+            srcObj := obj.GetObject(idx);
+            GetObject(idx).Assign(srcObj);
+          end;
+        xptList:
+          begin
+            srcLines := obj.GetListObject(idx, xfamRead);
+            if assigned(srcLines) then
+            begin
+              dstLines := GetListObject(idx, xfamWrite);
+              dstLines.Assign(srcLines);
+            end
+            else
+            begin
+              dstLines := GetListObject(idx, xfamClear);
+              if assigned(dstLines) then
+                dstLines.Clear;
+            end;
+          end;
       end;
     end;
     FModified := obj.FModified;
@@ -3241,6 +3392,69 @@ begin
       'TrackingCategories', 'TrackingCategory', categoryList, responselist, xsomUpdate);
 end;
 
+function TXEROConnect.GetTaxRates(taxRateList : TXEROTaxRateList; const AQuery : String = '') : boolean;
+begin
+  result := GetTaxRates(taxRateList, AQuery,  TXEROOrder.None, -1);
+end;
+
+function TXEROConnect.GetTaxRates(taxRateList : TXEROTaxRateList; const AQuery : String; const AOrder : TXEROOrder; APageNo : integer = -1) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := taxRateList.GetListLoader;
+  try
+    result := GetLoadList(BuildURI('','taxrates', AQuery, AOrder, hatGet, APageNo), nil, 'TaxRates', loader);
+    if result then
+    begin
+      if result then
+      begin
+        taxRateList.ResetModified;
+        taxRateList.SetIsNew(false);
+      end;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.GetTaxRate(taxRate : TXeroTaxRate; const AName : String) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+  useName : String;
+begin
+  loader := TXEROLoaderGenericBase.Create('TaxRate',taxRate);
+  try
+    if AName = '' then
+      result := false
+    else
+    begin
+      useName := String.Join('', AName.Split([' ']));
+      taxRate.Clear;
+      result := GetLoadSingleResult(BuildURI('taxrates',useName, '', hatGet), nil, 'TaxRates', loader);
+      if result then
+      begin
+        taxRate.ResetModified;
+        taxRate.IsNew := false;
+      end;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreTaxRate(taxRate: TXeroTaxRate) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('TaxRate', taxRate);
+  try
+    result := Store(BuildURI('', 'taxrates','', hatSend),
+    'TaxRates', 'TaxRate', taxRate, xsomUpdate, loader);
+  finally
+    loader.Free;
+  end;
+end;
+
 // Store an object
 function TXEROConnect.Store( const AURL : String; const AColnName, AObjName : String; AXeroObject : TXEROObject; AMode : TXEROSerialiseOutputMode; AObjectLoader : TJSONSAXNestableHandler) : boolean;
 var
@@ -4039,10 +4253,13 @@ begin
 end;
 
 procedure TXEROManualJournal.Assign( ASource : TPersistent);
+(*
 var
   src : TXEROManualJournal;
+  *)
 begin
   inherited Assign(ASource);
+  (*
   if (ASource is TXEROManualJournal) then
   begin
     src := TXEROManualJournal(ASource);
@@ -4056,6 +4273,7 @@ begin
       FJournalLines.Assign(src.FJournalLines);
     end;
   end;
+  *)
 end;
 
 class function TXEROManualJournal.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
@@ -4188,8 +4406,14 @@ begin
   case field of
     ord(xmjfJournalLines):
       begin
-        if (access = xfamWrite) and (not assigned(FJournalLines)) then
-          FJournalLines := TXEROManualJournalLineList.Create;
+        case access of
+          xfamWrite:
+            if not assigned(FJournalLines) then
+              FJournalLines := TXEROManualJournalLineList.Create;
+          xfamRead: ;
+          xfamClear:
+            FreeAndNil(FJournalLines);
+        end;
         result := FJournalLines;
       end;
   else result := inherited GetListObject(field, Access);
@@ -4236,9 +4460,175 @@ end;
 
 class function TXEROManualJournalList.PropListName : String;
 begin
-  inherited;
   result := 'ManualJournals';
 end;
+
+// TXEROTaxComponent
+//
+
+// protected definitions
+
+class function TXEROTaxComponent.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_TaxComponentMap.Map) then
+    Raise Exception.CreateFmt('Invalid Tax Component Field %d', [AField]);
+  result := G_TaxComponentMap.Map[AField];
+end;
+
+class function TXEROTaxComponent.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_TaxComponentMap.Map) then
+    Raise Exception.CreateFmt('Invalid Tax Component Field %d', [AField]);
+  result := CTaxComponentProperties[AField];
+end;
+
+class function TXEROTaxComponent.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_TaxComponentMap.Count[APropType];
+end;
+
+class function TXEROTaxComponent.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_TaxComponentMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROTaxComponent.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfName:result := ord(xtxfName);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+
+class function TXEROTaxComponent.PropObjectName : string;
+begin
+  result := 'TaxComponent';
+end;
+
+// public definitions
+
+// TXEROTaxComponentList
+//
+
+// public definitions
+
+class function TXEROTaxComponentList.PropListName : String;
+begin
+  result := 'TaxComponents';
+end;
+
+
+// TXEROTaxComponent.TXeroTaxRate
+//
+
+// protected definitions
+
+function TXeroTaxRate.rHasTaxComponents : boolean;
+begin
+  result := Assigned(FTaxComponents) and (FTaxComponents.Count > 0);
+end;
+function TXeroTaxRate.rTaxComponents: TXeroTaxComponentList;
+begin
+  if not assigned(FTaxComponents) then
+    FTaxComponents:= TXeroTaxComponentList.Create;
+  result := FTaxComponents;
+end;
+
+procedure TXeroTaxRate.wTaxComponents(NewVal: TXeroTaxComponentList);
+begin
+  if not assigned(FTaxComponents) then
+  begin
+    if assigned(newVal) then
+      FTaxComponents:= TXeroTaxComponentList.Create;
+  end;
+  if assigned(newVal) then
+    FTaxComponents.Assign(newVal)
+  else if assigned(FTaxComponents) then
+    FTaxComponents.Clear;
+end;
+
+class function TXeroTaxRate.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_TaxRateMap.Map) then
+    Raise Exception.CreateFmt('Invalid Tax Rate Field %d', [AField]);
+  result := G_TaxRateMap.Map[AField];
+end;
+
+class function TXeroTaxRate.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_TaxRateMap.Map) then
+    Raise Exception.CreateFmt('Invalid Tax Rate Field %d', [AField]);
+  result := CTaxRateProperties[AField];
+end;
+
+class function TXeroTaxRate.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
+begin
+  case AField of
+    ord(xtrfStatus): result := ord(XEROStatusAsEnum(StgVal));
+  else result := inherited PropStringAsEnum(AField, StgVal);
+  end;
+end;
+
+class function TXeroTaxRate.PropEnumAsString( AField : Word; IntVal : Integer) : string;
+begin
+  case AField of
+    ord(xtrfStatus): result := XEROStatusAsString(intVal);
+  else result := inherited PropEnumAsString(AField, IntVal);
+  end;
+end;
+
+class function TXeroTaxRate.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_TaxRateMap.Count[APropType];
+end;
+
+class function TXeroTaxRate.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_TaxRateMap.NameToFieldID(AFieldName);
+end;
+
+class function TXeroTaxRate.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfName:result := ord(xtrfName);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+
+class function TXeroTaxRate.PropObjectName : string;
+begin
+  result := 'TaxRate';
+end;
+
+function TXeroTaxRate.GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase;
+begin
+  case field of
+    ord(xtrfTaxComponents):
+      case access of
+        xfamWrite: result := rTaxComponents;
+        xfamClear:
+          begin
+            FreeAndNil(FTaxComponents);
+            result := nil;
+          end;
+      else
+        result := FTaxComponents; // Allowed to be null.
+      end;
+  else result := inherited GetListObject(field, Access);
+  end;
+end;
+
+// TXEROTaxRateList
+//
+
+// public definitions
+
+class function TXEROTaxRateList.PropListName : String;
+begin
+  result := 'TaxRates';
+end;
+
+// TXEROObjectListBase
 
 function TXEROObjectListBase.GetListLoader : TJSONSAXNestableHandler;
 begin
@@ -4382,6 +4772,17 @@ begin
   result := FList.Add(AObj as XOBJ);
 end;
 
+function TXEROObjectList<XOBJ>.ExtractIndex( AIndex : integer) : XOBJ;
+begin
+  result := FList[AIndex];
+  try
+    FList.OwnsObjects := false;
+    FList.Delete(AIndex);
+  finally
+    FList.OwnsObjects := true;
+  end;
+end;
+
 function TXEROObjectList<XOBJ>.rItems(idx : integer): XOBJ;
 begin
   result := FList.Items[idx];
@@ -4503,6 +4904,8 @@ initialization
   LoadTypeInfoMap( G_TrackingCategoryMap,  @CTrackingCategoryProperties[0], length(CTrackingCategoryProperties) );
   LoadTypeInfoMap( G_TrackingOptionMap,    @CTrackingOptionProperties[0],   length(CTrackingOptionProperties) );
   LoadTypeInfoMap( G_TrackingCategoryOptionMap, @CTrackingCategoryOptionProperties[0], length(CTrackingCategoryOptionProperties) );
+  LoadTypeInfoMap( G_TaxComponentMap,     @CTaxComponentProperties[0], length(CTaxComponentProperties));
+  LoadTypeInfoMap( G_TaxRateMap,          @CTaxRateProperties[0], length(CTaxRateProperties));
 finalization
   G_Comparer := nil;
 end.
