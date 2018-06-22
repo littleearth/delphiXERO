@@ -2384,6 +2384,8 @@ end;
 procedure TXEROObject.Clear;
 var
   idx : integer;
+  list : TXEROObjectListBase;
+  obj : TXEROObject;
 begin
   for idx := 0 to PropTypeCount(xptUnknown)-1 do
   begin
@@ -2398,6 +2400,18 @@ begin
           xptEnum,
           xptInteger:  wIntegerVal(idx, 0);
           xptBoolean:  wBooleanVal(idx, false);
+          xptList:
+            begin
+              list := GetListObject(idx, xfamClear);
+              if assigned(list) then
+                list.Clear;
+            end;
+          xptObject:
+            begin
+              obj := GetObject(idx);
+              if Assigned(obj) then
+                obj.Clear;
+            end;
         end;
       end
       else
