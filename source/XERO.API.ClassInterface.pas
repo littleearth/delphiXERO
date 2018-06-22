@@ -946,6 +946,7 @@ type
 
   TXEROTaxRateField = (
     xtrfName,
+    xtrfTaxType,
     xtrfTaxComponents,
     xtrfStatus,
     xtrfReportTaxType,
@@ -980,7 +981,9 @@ type
     function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
   public
     // Name of tax rate	TaxType	See Tax Types - can only be used on update calls
-    property TaxTypeName : String index ord(xtrfName) read rStringVal write wStringVal;
+    property RateName : String index ord(xtrfName) read rStringVal write wStringVal;
+    property TaxType : String index ord(xtrfTaxType) read rStringVal write wStringVal;
+
     // See TaxComponents
     property TaxComponents : TXeroTaxComponentList read rTaxComponents write wTaxComponents;
     property HasTaxComponents: boolean read rHasTaxComponents;
@@ -1125,7 +1128,7 @@ type
     // Load Tax rate settings
     function GetTaxRates(taxRateList : TXEROTaxRateList; const AQuery : String = '') : boolean; overload;
     function GetTaxRates(taxRateList : TXEROTaxRateList; const AQuery : String; const AOrder : TXEROOrder; APageNo : integer = -1) : boolean; overload;
-    function GetTaxRate(taxRate : TXeroTaxRate; const AName : String) : boolean;
+    function GetTaxRate(taxRate : TXeroTaxRate; const ATaxType : String) : boolean;
 
     // Update a tax rate
     function StoreTaxRate(taxRate: TXeroTaxRate) : boolean;
@@ -1301,7 +1304,8 @@ CTaxComponentProperties : array[ord(low(TXEROTaxComponentField))..ord(high(TXERO
   ( PropType: xptboolean; PropName: 'IsNonRecoverable';PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate];)
 );
 CTaxRateProperties  : array[ord(low(TXEROTaxRateField))..ord(high(TXEROTaxRateField))] of TXEROPropertyEntry = (
-  ( PropType: xptString;  PropName: 'TaxTypeName';           PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptString;  PropName: 'Name';           PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
+  ( PropType: xptString;  PropName: 'TaxType';        PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
   ( PropType: xptList;    PropName: 'TaxComponents';         PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
   ( PropType: xptEnum;    PropName: 'Status';                PropDefault: 'ACTIVE'; PropUsage: [xpuReqNew, xpuReqUpdate];),
   ( PropType: xptString;  PropName: 'ReportTaxType';         PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];),
@@ -3431,20 +3435,18 @@ begin
   end;
 end;
 
-function TXEROConnect.GetTaxRate(taxRate : TXeroTaxRate; const AName : String) : boolean;
+function TXEROConnect.GetTaxRate(taxRate : TXeroTaxRate; const ATaxType : String) : boolean;
 var
   loader : TJSONSAXNestableHandler;
-  useName : String;
 begin
   loader := TXEROLoaderGenericBase.Create('TaxRate',taxRate);
   try
-    if AName = '' then
+    if ATaxType = '' then
       result := false
     else
     begin
-      useName := String.Join('', AName.Split([' ']));
       taxRate.Clear;
-      result := GetLoadSingleResult(BuildURI('taxrates',useName, '', hatGet), nil, 'TaxRates', loader);
+      result := GetLoadSingleResult(BuildURI('taxrates',ATaxType, '', hatGet), nil, 'TaxRates', loader);
       if result then
       begin
         taxRate.ResetModified;
