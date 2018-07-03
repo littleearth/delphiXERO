@@ -711,12 +711,16 @@ begin
 end;
 
 function TXEROAPIBase.HTTPClient : TIdHTTP;
+var
+  handler : TIdSSLIOHandlerSocketOpenSSL;
 begin
   if not assigned(FHTTPClient) then
     FHTTPClient := TIdHTTP.Create(self);
   if not assigned(FSSLHandler) then
   begin
-    FSSLHandler := TIdSSLIOHandlerSocketOpenSSL.Create(self);
+    handler := TIdSSLIOHandlerSocketOpenSSL.Create(self);
+    FSSLHandler := handler;
+    handler.SSLOptions.Method := sslvTLSv1_2;
     FHTTPClient.IOHandler := FSSLHandler;
   end;
   result := FHTTPClient;
