@@ -790,7 +790,9 @@ function RSAEncrypt(const EncryptionType: TRSAEncryptionType;
 var
   EncodedMsg, CipherMsg: HugeWord;
 begin
+{$IFNDEF DELHPI_BetterWarn}
   Result := 0;
+{$ENDIF}
   // validate
   if (PublicKey.KeySize <= 0) or (PublicKey.KeySize mod HugeWordElementBits <> 0)
   then
@@ -1091,7 +1093,9 @@ function RSADecrypt(const EncryptionType: TRSAEncryptionType;
 var
   CipherMsg, EncodedMsg: HugeWord;
 begin
+{$IFNDEF DELHPI_BetterWarn}
   Result := 0;
+{$ENDIF}
   // validate
   if (PrivateKey.KeySize <= 0) or (PrivateKey.KeySize mod HugeWordElementBits
     <> 0) then
