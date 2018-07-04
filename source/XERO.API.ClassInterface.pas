@@ -1,5 +1,11 @@
-{: XERO API Class-based interface
- @cat
+{: XERO API Class-based interface.
+
+  These objects correspond to endpoints in the Xero Rest interface.
+  In order for generic loading/serialising/copying/getters/setters to be easily achieved,
+  the classes use static custom class information arrays.
+
+  Also where possible, enumerated types are used to make programming more efficient.
+
 }
 unit XERO.API.ClassInterface;
 
@@ -55,6 +61,7 @@ type
   {: Currently Available Property Types
   }
   TXEROPropertyType = (xptUnknown, xptString, xptCurrency, xptDateTime, xptInteger, xptBoolean, xptEnum, xptObject, xptList);
+
   {: Options defining when properties can be used.
   }
   TXEROPropertyUsage = (
@@ -372,6 +379,9 @@ type
     property   URL : String read FUrl write FUrl;
   end;
 
+  TXEROAddressList = class;
+  TXEROPhonesList = class;
+
   //: List of External links
   TXEROExternalLinkList = class(TXEROObjectList<TXEROExternalLink>)
   public
@@ -418,12 +428,19 @@ type
     class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
     class function PropFieldID( AFieldName : String) : integer; override;
     class function PropObjectName : string; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
   protected
     FExternalLinks: TXEROExternalLinkList;
+    FAddressesList : TXEROAddressList;
+    FPhonesList : TXEROPhonesList;
     procedure wExternalLinks(NewVal: TXEROExternalLinkList);
 
     function rXeroOrganisationType(AField : Integer) : TXeroOrganisationType;
     procedure wXeroOrganisationType(AField : Integer; NewVal: TXeroOrganisationType);
+    function rAddressesList : TXEROAddressList;
+    procedure wAddressesList(ANewVal : TXEROAddressList);
+    function rPhonesList : TXEROPhonesList;
+    procedure wPhonesList(ANewVal : TXEROPhonesList);
 
     //: Get at list field
     function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
@@ -484,9 +501,9 @@ type
     // Description of business type as defined in Organisation settings
     property LineOfBusiness : String index ord(xofLineOfBusiness) read rStringVal write wStringVal;
     // Address details for organisation - see Addresses
-    property Addresses : String index ord(xofAddresses) read rStringVal write wStringVal;
+    property Addresses : TXEROAddressList read rAddressesList write wAddressesList;
     // Phones details for organisation - see Phones
-    property Phones : String index ord(xofPhones) read rStringVal write wStringVal;
+    property Phones : TXEROPhonesList read rPhonesList write wPhonesList;
     // Default payment terms for the organisation if set - See Payment Terms below
     property PaymentTerms : String index ord(xofPaymentTerms) read rStringVal write wStringVal;
 
@@ -805,6 +822,8 @@ type
 
   TXEROManualJournalStatus = ( xmjsNotSet, xmjsDraft, xmjsPosted, xmjsDeleted, xmjsVoided);
 
+  TXEROLineAmountTypes = (xlatUnspecified, xlatNoTax, xlatExclusiveOfTax, xlatInclusiveOfTax);
+
   TXEROManualJournalField = (
     xmjfManualJournalID,
     xmjfNarration,
@@ -847,6 +866,8 @@ type
 
     function rStatus: TXEROManualJournalStatus;
     procedure wStatus(NewVal: TXEROManualJournalStatus);
+    function rLineAmountTypesEnum(AField : integer) : TXEROLineAmountTypes;
+    procedure wLineAmountTypesEnum(AField : integer; ANewVal : TXEROLineAmountTypes);
   public
     procedure Clear; override;
     procedure Assign( ASource : TPersistent); override;
@@ -880,7 +901,7 @@ type
     // The following are optional for a PUT / POST request
 
     // NoTax by default if you don't specify this element. See Line Amount Types
-    property LineAmountTypes : String index ord(xmjfLineAmountTypes) read rStringVal write wStringVal;
+    property LineAmountTypes : TXEROLineAmountTypes index ord(xmjfLineAmountTypes) read rLineAmountTypesEnum write wLineAmountTypesEnum;
 
     // See Manual Journal Status Codes
     property StatusAsString : String index ord(xmjfStatus) read rEnumStgVal write wEnumStgVal;
@@ -1011,6 +1032,683 @@ type
     class function PropListName : String; override;
   end;
 
+
+  // Invoices Status  (invoices so as not in conflict with the one in XERO.API.INVOICES)
+  TXEROInvoicesStatus = (xisUnspecified, xisDraft, xisSubmitted, xisDeleted,
+    xisAuthorised, xisPaid, xisVoided);
+
+  TXEROInvoicesType = (xitUnspecified, xitAccPay, xitAccRec);
+
+  TXEROBrandingThemeField = (xbtfBrandingThemeID, xbtfName, xbtfSortOrder, xbtfCreatedDateUTC);
+  TXEROBrandingTheme = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+  published
+    // Xero identifier
+    property BrandingThemeID : String index xbtfBrandingThemeID read rStringVal write wStringVal;
+    // Name of branding theme
+    property Name : String index xbtfName read rStringVal write wStringVal;
+    // Integer - ranked order of branding theme. The default branding theme has a value of 0
+    property SortOrder : String index xbtfSortOrder read rStringVal write wStringVal;
+    // UTC timestamp of creation date of branding theme
+    property CreatedDateUTC : TDateTime index xbtfCreatedDateUTC read rDateTimeVal write wDateTimeVal;
+  end;
+
+  TXEROAddressType = (xaddUnspecified, xaddPOBox, xaddStreet, xaddDelivery);
+
+  TXEROAddressField = (xafAddressType, xafAddressLine1, xafAddressLine2, xafAddressLine3, xafAddressLine4, xafCity, xafRegion, xafPostalCode, xafCountry, xafAttentionTo);
+  TXEROAddress = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropStringAsEnum( AField : Word; const StgVal : String) : integer; override;
+    class function PropEnumAsString( AField : Word; IntVal : Integer) : string; override;
+  protected
+    function rAddressTypeEnum(AField : integer) : TXEROAddressType;
+    procedure wAddressTypeEnum(AField : integer; ANewVal : TXEROAddressType);
+  published
+    property AddressType : TXEROAddressType index xafAddressType read rAddressTypeEnum write wAddressTypeEnum;
+    property AddressLine1 : String index xafAddressLine1 read rStringVal write wStringVal;
+    property AddressLine2 : String index xafAddressLine2 read rStringVal write wStringVal;
+    property AddressLine3 : String index xafAddressLine3 read rStringVal write wStringVal;
+    property AddressLine4 : String index xafAddressLine4 read rStringVal write wStringVal;
+    property City : String index xafCity read rStringVal write wStringVal;
+    property Region : String index xafRegion read rStringVal write wStringVal;
+    property PostalCode : String index xafPostalCode read rStringVal write wStringVal;
+    property Country : String index xafCountry read rStringVal write wStringVal;
+    property AttentionTo : String index xafAttentionTo read rStringVal write wStringVal;
+  end;
+  TXEROAddressList = class(TXEROObjectList<TXEROAddress>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  // STUB
+  TXEROPhone = class(TXEROObject)
+  public
+    class function PropObjectName : String; override;
+  end;
+  TXEROPhonesList = class(TXEROObjectList<TXEROPhone>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  TXEROInvoice = class;
+  TXEROCreditNote = class;
+  TXEROPrepayment = class;
+  TXEROOverpayment = class;
+
+  TXEROContactStatus = (xcsUnspecified, xcsActive, xcsArchived, xcsGDPRRequest);
+  TXEROPaymentTerms = (xptUnspecified, xptDaysAfterBillDate, xptOfCurrentMonth, xptOfFollowingMonth);
+
+  TXEROPaymentType = (
+    xptUnspecifiedPayment,
+    xptAccRecPayment, // Accounts Receivable Payment
+    xptAccPayPayment, // Accounts Payable Payment
+    xptARCreditPayment, // Accounts Receivable Credit Payment (Refund)
+    xptAPCreditPayment, // Accounts Payable Credit Payment (Refund)
+    xptAROverPaymentPayment, // Accounts Receivable Overpayment Payment (Refund)
+    xptARPrePaymentPayment, // Accounts Receivable Prepayment Payment (Refund)
+    xptAPPrePaymentPayment, // Accounts Payable Prepayment Payment (Refund)
+    xptAPOverPaymentPayment // Accounts Payable Overpayment Payment (Refund)
+  );
+
+  TXEROPaymentStatus = (
+    xpsUnspecified,
+    xpsAuthorised,
+    xpsDeleted
+  );
+
+  TXEROPaymentField = (
+    xpfPaymentID, xpfDate, xpfCurrencyRate, xpfAmount, xpfReference,
+    xpfIsReconciled, xpfStatus, xpfPaymentType, xpfUpdatedDateUTC, xpfAccount,
+    xpfInvoice, xpfCreditNote, xpfPrepayments, xpfOverpayment);
+
+  TXEROPayment = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropStringAsEnum( AField : Word; const StgVal : String) : integer; override;
+    class function PropEnumAsString( AField : Word; IntVal : Integer) : string; override;
+  protected
+    FAccount : TXEROAccount;
+    FInvoice : TXEROInvoice;
+    FCreditNote : TXEROCreditNote;
+    FPrepayments : TXEROPrepayment;
+    FOverpayment : TXEROOverpayment;
+    function rStatusEnum(AField : integer) : TXEROPaymentStatus;
+    procedure wStatusEnum(AField : integer; ANewVal : TXEROPaymentStatus);
+    function rPaymentTypeEnum(AField : integer) : TXEROPaymentType;
+    procedure wPaymentTypeEnum(AField : integer; ANewVal : TXEROPaymentType);
+    function rAccount : TXEROAccount;
+    procedure wAccount(ANewVal : TXEROAccount);
+    function rInvoice : TXEROInvoice;
+    procedure wInvoice(ANewVal : TXEROInvoice);
+    function rCreditNote : TXEROCreditNote;
+    procedure wCreditNote(ANewVal : TXEROCreditNote);
+    function rPrepayments : TXEROPrepayment;
+    procedure wPrepayments(ANewVal : TXEROPrepayment);
+    function rOverpayment : TXEROOverpayment;
+    procedure wOverpayment(ANewVal : TXEROOverpayment);
+    function GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject; override;
+  public
+    procedure BeforeDestruction; override;
+  published
+    // Ident of payment
+    property PaymentID : String index xpfPaymentID read rStringVal write wStringVal;
+    // Date the payment is being made (YYYY-MM-DD) e.g. 2009-09-06
+    property Date : TDateTime index xpfDate read rDateTimeVal write wDateTimeVal;
+    // Exchange rate when payment is received. Only used for non base currency invoices and credit notes e.g. 0.7500
+    property CurrencyRate : Currency index xpfCurrencyRate read rCurrencyVal write wCurrencyVal;
+    // The amount of the payment. Must be less than or equal to the outstanding amount owing on the invoice e.g. 200.00
+    property Amount : Currency index xpfAmount read rCurrencyVal write wCurrencyVal;
+    // An optional description for the payment e.g. Direct Debit
+    property Reference : String index xpfReference read rStringVal write wStringVal;
+    // An optional parameter for the payment. Conversion related apps can utilise the IsReconciled flag in scenarios when a matching bank statement line is not available. Learn more
+    property IsReconciled : Boolean index xpfIsReconciled read rBooleanVal write wBooleanVal;
+    // The status of the payment.
+    property Status : TXEROPaymentStatus index xpfStatus read rStatusEnum write wStatusEnum;
+    // See Payment Types.
+    property PaymentType : TXEROPaymentType index xpfPaymentType read rPaymentTypeEnum write wPaymentTypeEnum;
+    // UTC timestamp of last update to the payment
+    property UpdatedDateUTC : TDateTime index xpfUpdatedDateUTC read rDateTimeVal write wDateTimeVal;
+    // The Account the payment was made from
+    property Account : TXEROAccount read rAccount write wAccount;
+    // The Invoice the payment was made against
+    property Invoice : TXEROInvoice read rInvoice write wInvoice;
+    // The Credit Note the payment was made against
+    property CreditNote : TXEROCreditNote read rCreditNote write wCreditNote;
+    // The Prepayment the payment was made against
+    property Prepayment : TXEROPrepayment read rPrepayments write wPrepayments;
+    // The Overpayment the payment was made against
+    property Overpayment : TXEROOverpayment read rOverpayment write wOverpayment;
+  end;
+  TXEROPaymentList = class(TXEROObjectList<TXEROPayment>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  TXEROContact = class;
+  // Credit notes just use the invoice line items.
+  TXEROInvoiceLineItemList = class;
+  TXEROCreditNoteStatus = (xcnsUspecified, xcnsSubmitted, xcnsAuthorised, scnsPAID); // ??? These are currently copied from ExpenseClaims enum
+
+  TXEROCreditNoteField = (xcnfCreditNoteID, xcnfType, xcnfContact, xcnfDate, xcnfStatus, xcnfLineAmountTypes, xcnfLineItems, xcnfSubTotal, xcnfTotalTax, xcnfTotal, xcnfCISDeduction, xcnfUpdatedDateUTC, xcnfCurrencyCode, xcnfFullyPaidOnDate, xcnfCreditNoteNumber, xcnfReference, xcnfSentToContact, xcnfCurrencyRate, xcnfRemainingCredit, xcnfAllocations, xcnfBrandingThemeID, xcnfHasAttachments);
+  TXEROCreditNote = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropStringAsEnum( AField : Word; const StgVal : String) : integer; override;
+    class function PropEnumAsString( AField : Word; IntVal : Integer) : string; override;
+  protected
+    FContact : TXEROContact;
+    FLineItemsList : TXEROInvoiceLineItemList;
+    function rTypeEnum(AField : integer) : TXEROInvoicesType;
+    procedure wTypeEnum(AField : integer; ANewVal : TXEROInvoicesType);
+    function rContact : TXEROContact;
+    procedure wContact(ANewVal : TXEROContact);
+    function rStatusEnum(AField : integer) : TXEROCreditNoteStatus;
+    procedure wStatusEnum(AField : integer; ANewVal : TXEROCreditNoteStatus);
+    function rLineAmountTypesEnum(AField : integer) : TXEROLineAmountTypes;
+    procedure wLineAmountTypesEnum(AField : integer; ANewVal : TXEROLineAmountTypes);
+    function rLineItemsList : TXEROInvoiceLineItemList;
+    procedure wLineItemsList(ANewVal : TXEROInvoiceLineItemList);
+    function GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject; override;
+    function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
+  public
+    procedure BeforeDestruction; override;
+  published
+    // Xero generated unique identifier
+    property CreditNoteID : String index xcnfCreditNoteID read rStringVal write wStringVal;
+    // See Credit Note Types
+    property CreditNoteType : TXEROInvoicesType index xcnfType read rTypeEnum write wTypeEnum;
+    // See Contacts
+    property Contact : TXEROContact read rContact write wContact;
+    // The date the credit note is issued YYYY-MM-DD. If the Date element is not specified then it will default to the current date based on the timezone setting of the organisation
+    property Date : TDateTime index xcnfDate read rDateTimeVal write wDateTimeVal;
+    // See Credit Note Status Codes
+    property Status : TXEROCreditNoteStatus index xcnfStatus read rStatusEnum write wStatusEnum;
+    // See Invoice Line Amount Types
+    property LineAmountTypes : TXEROLineAmountTypes index xcnfLineAmountTypes read rLineAmountTypesEnum write wLineAmountTypesEnum;
+    // See Invoice Line Items
+    property LineItems : TXEROInvoiceLineItemList read rLineItemsList write wLineItemsList;
+    // The subtotal of the credit note excluding taxes
+    property SubTotal : Currency index xcnfSubTotal read rCurrencyVal write wCurrencyVal;
+    // The total tax on the credit note
+    property TotalTax : Currency index xcnfTotalTax read rCurrencyVal write wCurrencyVal;
+    // The total of the Credit Note(subtotal + total tax)
+    property Total : Currency index xcnfTotal read rCurrencyVal write wCurrencyVal;
+    // CISDeduction withheld by the contractor to be paid to HMRC on behalf of subcontractor (Available for organisations under UK Construction Industry Scheme)
+    property CISDeduction : Currency index xcnfCISDeduction read rCurrencyVal write wCurrencyVal;
+    // UTC timestamp of last update to the credit note
+    property UpdatedDateUTC : TDateTime index xcnfUpdatedDateUTC read rDateTimeVal write wDateTimeVal;
+    // Currency used for the Credit Note
+    property CurrencyCode : String index xcnfCurrencyCode read rStringVal write wStringVal;
+    // Date when credit note was fully paid(UTC format)
+    property FullyPaidOnDate : TDateTime index xcnfFullyPaidOnDate read rDateTimeVal write wDateTimeVal;
+    // ACCRECCREDIT - Unique alpha numeric code identifying credit note.  ACCPAYCREDIT - Non-unique alpha numeric code identifying credit note. This value will also display as Reference in the UI.
+    property CreditNoteNumber : String index xcnfCreditNoteNumber read rStringVal write wStringVal;
+    // ACCRECCREDIT only - additional reference number
+    property Reference : String index xcnfReference read rStringVal write wStringVal;
+    // boolean to indicate if a credit note has been sent to a contact via the Xero app (currently read only)
+    property SentToContact : Boolean index xcnfSentToContact read rBooleanVal write wBooleanVal;
+    // The currency rate for a multicurrency invoice. If no rate is specified, the XE.com day rate is used
+    property CurrencyRate : Currency index xcnfCurrencyRate read rCurrencyVal write wCurrencyVal;
+    // The remaining credit balance on the Credit Note
+    property RemainingCredit : Currency index xcnfRemainingCredit read rCurrencyVal write wCurrencyVal;
+    // See Allocations
+    property Allocations : String index xcnfAllocations read rStringVal write wStringVal;
+    // See BrandingThemes
+    property BrandingThemeID : String index xcnfBrandingThemeID read rStringVal write wStringVal;
+    // boolean to indicate if a credit note has an attachment
+    property HasAttachments : Boolean index xcnfHasAttachments read rBooleanVal write wBooleanVal;
+  end;
+  TXEROCreditNoteList = class(TXEROObjectList<TXEROCreditNote>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  // STUB
+  TXEROPrepayment = class(TXEROObject)
+  public
+    class function PropObjectName : String; override;
+  end;
+  TXEROPrepaymentList = class(TXEROObjectList<TXEROPrepayment>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  // STUB
+  TXEROOverpayment = class(TXEROObject)
+  public
+    class function PropObjectName : String; override;
+  end;
+  TXEROOverpaymentList = class(TXEROObjectList<TXEROOverpayment>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  TXEROContactPersonField = (xcpfFirstName, xcpfLastName, xcpfEmailAddress, xcpfIncludeInEmails);
+  TXEROContactPerson = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+  published
+    // First name of person
+    property FirstName : String index xcpfFirstName read rStringVal write wStringVal;
+    // Last name of person
+    property LastName : String index xcpfLastName read rStringVal write wStringVal;
+    // Email address of person
+    property EmailAddress : String index xcpfEmailAddress read rStringVal write wStringVal;
+    // boolean to indicate whether contact should be included on emails with invoices etc.
+    property IncludeInEmails : Boolean index xcpfIncludeInEmails read rBooleanVal write wBooleanVal;
+  end;
+
+  TXEROContactPersonsList = class(TXEROObjectList<TXEROContactPerson>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  // contact
+  TXEROContactField = (xcfContactID, xcfContactNumber, xcfAccountNumber, xcfContactStatus, xcfName, xcfFirstName, xcfLastName, xcfEmailAddress, xcfSkypeUserName, xcfBankAccountDetails, xcfTaxNumber, xcfAccountsReceivableTaxType, xcfAccountsPayableTaxType, xcfAddresses, xcfPhones, xcfIsSupplier, xcfIsCustomer, xcfDefaultCurrency, xcfUpdatedDateUTC, xcfContactPersons, xcfXeroNetworkKey, xcfSalesDefaultAccountCode, xcfPurchasesDefaultAccountCode, xcfSalesTrackingCategories, xcfPurchasesTrackingCategories, xcfTrackingCategoryName, xcfTrackingOptionName, xcfPaymentTerms, xcfContactGroups, xcfWebsite, xcfBrandingTheme, xcfBatchPayments, xcfDiscount, xcfBalances, xcfHasAttachments);
+  TXEROContact = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropStringAsEnum( AField : Word; const StgVal : String) : integer; override;
+    class function PropEnumAsString( AField : Word; IntVal : Integer) : string; override;
+  protected
+    FAddressesList : TXEROAddressList;
+    FPhonesList : TXEROPhonesList;
+    FContactPersonsList : TXEROContactPersonsList;
+    FSalesTrackingCategoriesList : TXEROTrackingCategoryList;
+    FPurchasesTrackingCategoriesList : TXEROTrackingCategoryList;
+    FBrandingTheme : TXEROBrandingTheme;
+    function rContactStatusEnum(AField : integer) : TXEROContactStatus;
+    procedure wContactStatusEnum(AField : integer; ANewVal : TXEROContactStatus);
+    function rAddressesList : TXEROAddressList;
+    procedure wAddressesList(ANewVal : TXEROAddressList);
+    function rPhonesList : TXEROPhonesList;
+    procedure wPhonesList(ANewVal : TXEROPhonesList);
+    function rContactPersonsList : TXEROContactPersonsList;
+    procedure wContactPersonsList(ANewVal : TXEROContactPersonsList);
+    function rSalesTrackingCategoriesList : TXEROTrackingCategoryList;
+    procedure wSalesTrackingCategoriesList(ANewVal : TXEROTrackingCategoryList);
+    function rPurchasesTrackingCategoriesList : TXEROTrackingCategoryList;
+    procedure wPurchasesTrackingCategoriesList(ANewVal : TXEROTrackingCategoryList);
+    function rPaymentTermsEnum(AField : integer) : TXEROPaymentTerms;
+    procedure wPaymentTermsEnum(AField : integer; ANewVal : TXEROPaymentTerms);
+    function rBrandingTheme : TXEROBrandingTheme;
+    procedure wBrandingTheme(ANewVal : TXEROBrandingTheme);
+    function GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject; override;
+    function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
+  public
+    procedure BeforeDestruction; override;
+  published
+    // Xero identifier
+    property ContactID : String index xcfContactID read rStringVal write wStringVal;
+    // This field is read only in the Xero UI, used to identify contacts in external systems. It is displayed as Contact Code in the Contacts UI in Xero.
+    property ContactNumber : String index xcfContactNumber read rStringVal write wStringVal;
+    // A user defined account number. This can be updated via the API and the Xero UI
+    property AccountNumber : String index xcfAccountNumber read rStringVal write wStringVal;
+    // Current status of a contact - see contact status types
+    property ContactStatus : TXEROContactStatus index xcfContactStatus read rContactStatusEnum write wContactStatusEnum;
+    // Full name of contact/organisation
+    property Name : String index xcfName read rStringVal write wStringVal;
+    // First name of contact person
+    property FirstName : String index xcfFirstName read rStringVal write wStringVal;
+    // Last name of contact person
+    property LastName : String index xcfLastName read rStringVal write wStringVal;
+    // Email address of contact person
+    property EmailAddress : String index xcfEmailAddress read rStringVal write wStringVal;
+    // Skype user name of contact
+    property SkypeUserName : String index xcfSkypeUserName read rStringVal write wStringVal;
+    // Bank account number of contact
+    property BankAccountDetails : String index xcfBankAccountDetails read rStringVal write wStringVal;
+    // Tax number of contact - this is also known as the ABN (Australia), GST Number (New Zealand), VAT Number (UK) or Tax ID Number (US and global) in the Xero UI depending on which regionalized version of Xero you are using
+    property TaxNumber : String index xcfTaxNumber read rStringVal write wStringVal;
+    // Default tax type used for contact on AR invoices
+    property AccountsReceivableTaxType : String index xcfAccountsReceivableTaxType read rStringVal write wStringVal;
+    // Default tax type used for contact on AP invoices
+    property AccountsPayableTaxType : String index xcfAccountsPayableTaxType read rStringVal write wStringVal;
+
+    // Store certain address types for a contact - see address types
+    property Addresses : TXEROAddressList read rAddressesList write wAddressesList;
+    // Store certain phone types for a contact - see phone types
+    property Phones : TXEROPhonesList read rPhonesList write wPhonesList;
+
+    // true or false - Boolean that describes if a contact that has any AP invoices entered against them
+    property IsSupplier : Boolean index xcfIsSupplier read rBooleanVal write wBooleanVal;
+    // true or false - Boolean that describes if a contact has any AR invoices entered against them
+    property IsCustomer : Boolean index xcfIsCustomer read rBooleanVal write wBooleanVal;
+    // Default currency for raising invoices against contact
+    property DefaultCurrency : String index xcfDefaultCurrency read rStringVal write wStringVal;
+    // UTC timestamp of last update to contact
+    property UpdatedDateUTC : TDateTime index xcfUpdatedDateUTC read rDateTimeVal write wDateTimeVal;
+
+    // The following are only retrieved on GET requests for a single contact or when pagination is used
+
+    // See contact persons. A contact can have a maximum of 5 ContactPersons
+    property ContactPersons : TXEROContactPersonsList read rContactPersonsList write wContactPersonsList;
+    // Store XeroNetworkKey for contacts.
+    property XeroNetworkKey : String index xcfXeroNetworkKey read rStringVal write wStringVal;
+    // The default sales account code for contacts
+    property SalesDefaultAccountCode : String index xcfSalesDefaultAccountCode read rStringVal write wStringVal;
+    // The default purchases account code for contacts
+    property PurchasesDefaultAccountCode : String index xcfPurchasesDefaultAccountCode read rStringVal write wStringVal;
+    // The default sales tracking categories for contacts
+    property SalesTrackingCategories : TXEROTrackingCategoryList read rSalesTrackingCategoriesList write wSalesTrackingCategoriesList;
+    // The default purchases tracking categories for contacts
+    property PurchasesTrackingCategories : TXEROTrackingCategoryList read rPurchasesTrackingCategoriesList write wPurchasesTrackingCategoriesList;
+    // The name of the Tracking Category assigned to the contact under SalesTrackingCategories and PurchasesTrackingCategories
+    property TrackingCategoryName : String index xcfTrackingCategoryName read rStringVal write wStringVal;
+    // The name of the Tracking Option assigned to the contact under SalesTrackingCategories and PurchasesTrackingCategories
+    property TrackingOptionName : String index xcfTrackingOptionName read rStringVal write wStringVal;
+    // The default payment terms for the contact - see Payment Terms
+    property PaymentTerms : TXEROPaymentTerms index xcfPaymentTerms read rPaymentTermsEnum write wPaymentTermsEnum;
+    // Displays which contact groups a contact is included in
+    property ContactGroups : String index xcfContactGroups read rStringVal write wStringVal;
+    // Website address for contact
+    property Website : String index xcfWebsite read rStringVal write wStringVal;
+    // Default branding theme for contact - see Branding Themes
+    property BrandingTheme : TXEROBrandingTheme read rBrandingTheme write wBrandingTheme;
+    // batch payment details for contact
+    property BatchPayments : String index xcfBatchPayments read rStringVal write wStringVal;
+    // The default discount rate for the contact
+    property Discount : Currency index xcfDiscount read rCurrencyVal write wCurrencyVal;
+    // The raw AccountsReceivable(sales invoices) and AccountsPayable(bills) outstanding and overdue amounts, not converted to base currency
+    property Balances : String index xcfBalances read rStringVal write wStringVal;
+    // A boolean to indicate if a contact has an attachment
+    property HasAttachments : Boolean index xcfHasAttachments read rBooleanVal write wBooleanVal;
+  end;
+
+  TXEROContactList = class(TXEROObjectList<TXEROContact>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  TXEROInvoiceLineItemField = (xilifDescription, xilifQuantity, xilifUnitAmount, xilifItemCode, xilifAccountCode, xilifLineItemID, xilifTaxType, xilifTaxAmount, xilifLineAmount, xilifDiscountRate, xilifTracking);
+  TXEROInvoiceLineItem = class(TXEROObject)
+  protected
+    FTrackingList : TXEROTrackingCategoryOptionList;
+    function rTrackingList : TXEROTrackingCategoryOptionList;
+    procedure wTrackingList(ANewVal : TXEROTrackingCategoryOptionList);
+    function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+
+    procedure BeforeDestruction; override;
+  published
+    // The description of the line item
+    property Description : String index xilifDescription read rStringVal write wStringVal;
+    // LineItem Quantity
+    property Quantity : Currency index xilifQuantity read rCurrencyVal write wCurrencyVal;
+    // Lineitem unit amount. By default, unit amount will be rounded to two decimal places. You can opt in to use four decimal places by adding the querystring parameter unitdp=4 to your query. See the Rounding in Xero guide for more information.
+    property UnitAmount : Currency index xilifUnitAmount read rCurrencyVal write wCurrencyVal;
+    // See Items
+    property ItemCode : String index xilifItemCode read rStringVal write wStringVal;
+    // See Accounts
+    property AccountCode : String index xilifAccountCode read rStringVal write wStringVal;
+    // The Xero generated identifier for a LineItem
+    property LineItemID : String index xilifLineItemID read rStringVal write wStringVal;
+    // Used as an override if the default Tax Code for the selected AccountCode is not correct - see TaxTypes.
+    property TaxType : String index xilifTaxType read rStringVal write wStringVal;
+    // The tax amount is auto calculated as a percentage of the line amount based on the tax rate
+    property TaxAmount : Currency index xilifTaxAmount read rCurrencyVal write wCurrencyVal;
+    // The line amount reflects the discounted price if a DiscountRate has been used i.e LineAmount = Quantity * Unit Amount * ((100 - DiscountRate)/100)
+    property LineAmount : Currency index xilifLineAmount read rCurrencyVal write wCurrencyVal;
+    // Percentage discount being applied to a line item (only supported on ACCREC invoices - ACC PAY invoices and credit notes in Xero do not support discounts
+    property DiscountRate : Currency index xilifDiscountRate read rCurrencyVal write wCurrencyVal;
+    // Section for optional Tracking Category - see TrackingCategory. Any LineItem can have a maximum of 2 TrackingCategory elements.
+    property Tracking : TXEROTrackingCategoryOptionList read rTrackingList write wTrackingList;
+  end;
+
+  TXEROInvoiceLineItemList = class(TXEROObjectList<TXEROInvoiceLineItem>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  TXEROInvoicesField = (
+    xifType, xifContact, xifDate, xifDueDate, xifStatus, xifLineAmountTypes,
+    xifLineItems, xifSubTotal, xifTotalTax, xifTotal, xifTotalDiscount,
+    xifUpdatedDateUTC, xifCurrencyCode, xifCurrencyRate, xifInvoiceID,
+    xifInvoiceNumber, xifReference, xifBrandingThemeID, xifUrl, xifSentToContact,
+    xifExpectedPaymentDate, xifPlannedPaymentDate, xifHasAttachments, xifPayments,
+    xifCreditNotes, xifPrepayments, xifOverpayments, xifAmountDue, xifAmountPaid,
+    xifCISDeduction, xifFullyPaidOnDate, xifAmountCredited);
+
+  // Represents a single invoice
+  TXEROInvoice = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+    class function PropStringAsEnum( AField : Word; const StgVal : String) : integer; override;
+    class function PropEnumAsString( AField : Word; IntVal : Integer) : string; override;
+  protected
+    FContact : TXEROContact;
+    FLineItemsList : TXEROInvoiceLineItemList;
+    FPaymentsList : TXEROPaymentList;
+    FCreditNotesList : TXEROCreditNoteList;
+    FPrepaymentsList : TXEROPrepaymentList;
+    FOverpaymentsList : TXEROOverpaymentList;
+    function rTypeEnum(AField : integer) : TXEROInvoicesType;
+    procedure wTypeEnum(AField : integer; ANewVal : TXEROInvoicesType);
+
+    function rContact : TXEROContact;
+    procedure wContact(ANewVal : TXEROContact);
+    function rStatusEnum(AField : integer) : TXEROInvoicesStatus;
+    procedure wStatusEnum(AField : integer; ANewVal : TXEROInvoicesStatus);
+    function rLineAmountTypesEnum(AField : integer) : TXEROLineAmountTypes;
+    procedure wLineAmountTypesEnum(AField : integer; ANewVal : TXEROLineAmountTypes);
+    function rLineItemsList : TXEROInvoiceLineItemList;
+    procedure wLineItemsList(ANewVal : TXEROInvoiceLineItemList);
+    function rPaymentsList : TXEROPaymentList;
+    procedure wPaymentsList(ANewVal : TXEROPaymentList);
+    function rCreditNotesList : TXEROCreditNoteList;
+    procedure wCreditNotesList(ANewVal : TXEROCreditNoteList);
+    function rPrepaymentsList : TXEROPrepaymentList;
+    procedure wPrepaymentsList(ANewVal : TXEROPrepaymentList);
+    function rOverpaymentsList : TXEROOverpaymentList;
+    procedure wOverpaymentsList(ANewVal : TXEROOverpaymentList);
+    function GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject; override;
+    function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; override;
+  public
+    procedure BeforeDestruction; override;
+  published
+    // See Invoice Types
+    property InvoiceType : TXEROInvoicesType index xifType read rTypeEnum write wTypeEnum;
+    // See Contacts
+    property Contact : TXEROContact read rContact write wContact;
+    // Date invoice was issued - YYYY-MM-DD
+    property Date : TDateTime index xifDate read rDateTimeVal write wDateTimeVal;
+    // Date invoice is due - YYYY-MM-DD
+    property DueDate : TDateTime index xifDueDate read rDateTimeVal write wDateTimeVal;
+    // See Invoice Status Codes
+    property Status : TXEROInvoicesStatus index xifStatus read rStatusEnum write wStatusEnum;
+    // See Line Amount Types
+    property LineAmountTypes : TXEROLineAmountTypes index xifLineAmountTypes read rLineAmountTypesEnum write wLineAmountTypesEnum;
+    // See LineItems. The LineItems collection can contain any number of individual LineItem sub-elements.
+    property LineItems : TXEROInvoiceLineItemList read rLineItemsList write wLineItemsList;
+    // Total of invoice excluding taxes
+    property SubTotal : Currency index xifSubTotal read rCurrencyVal write wCurrencyVal;
+    // Total tax on invoice
+    property TotalTax : Currency index xifTotalTax read rCurrencyVal write wCurrencyVal;
+    // Total of Invoice tax inclusive (i.e. SubTotal + TotalTax)
+    property Total : Currency index xifTotal read rCurrencyVal write wCurrencyVal;
+    // Total of discounts applied on the invoice line items
+    property TotalDiscount : Currency index xifTotalDiscount read rCurrencyVal write wCurrencyVal;
+    // Last modified date UTC format
+    property UpdatedDateUTC : TDateTime index xifUpdatedDateUTC read rDateTimeVal write wDateTimeVal;
+    // The currency that invoice has been raised in (see Currencies)
+    property CurrencyCode : String index xifCurrencyCode read rStringVal write wStringVal;
+    // The currency rate for a multicurrency invoice
+    property CurrencyRate : Currency index xifCurrencyRate read rCurrencyVal write wCurrencyVal;
+    // Xero generated unique identifier for invoice
+    property InvoiceID : String index xifInvoiceID read rStringVal write wStringVal;
+    { ACCREC - Unique alpha numeric code identifying invoice
+      ACCPAY - non-unique alpha numeric code identifying invoice. This value will also display as Reference in the UI.
+    }
+    property InvoiceNumber : String index xifInvoiceNumber read rStringVal write wStringVal;
+
+    // ACCREC only - additional reference number
+    property Reference : String index xifReference read rStringVal write wStringVal;
+    // See BrandingThemes
+    property BrandingThemeID : String index xifBrandingThemeID read rStringVal write wStringVal;
+    // URL link to a source document - shown as "Go to [appName]" in the Xero app
+    property Url : String index xifUrl read rStringVal write wStringVal;
+    // Boolean to indicate whether the invoice in the Xero app displays as "sent"
+    property SentToContact : Boolean index xifSentToContact read rBooleanVal write wBooleanVal;
+    // Shown on sales invoices (Accounts Receivable) when this has been set
+    property ExpectedPaymentDate : TDateTime index xifExpectedPaymentDate read rDateTimeVal write wDateTimeVal;
+    // Shown on bills (Accounts Payable) when this has been set
+    property PlannedPaymentDate : TDateTime index xifPlannedPaymentDate read rDateTimeVal write wDateTimeVal;
+    // boolean to indicate if an invoice has an attachment
+    property HasAttachments : Boolean index xifHasAttachments read rBooleanVal write wBooleanVal;
+    // See Payments
+    property Payments : TXEROPaymentList read rPaymentsList write wPaymentsList;
+    // Details of credit notes that have been applied to an invoice
+    property CreditNotes : TXEROCreditNoteList read rCreditNotesList write wCreditNotesList;
+    // See Prepayments
+    property Prepayments : TXEROPrepaymentList read rPrepaymentsList write wPrepaymentsList;
+    // See Overpayments
+    property Overpayments : TXEROOverpaymentList read rOverpaymentsList write wOverpaymentsList;
+    // Amount remaining to be paid on invoice
+    property AmountDue : Currency index xifAmountDue read rCurrencyVal write wCurrencyVal;
+    // Sum of payments received for invoice
+    property AmountPaid : Currency index xifAmountPaid read rCurrencyVal write wCurrencyVal;
+    // CISDeduction withheld by the contractor to be paid to HMRC on behalf of subcontractor (Available for organisations under UK Construction Industry Scheme)
+    property CISDeduction : Currency index xifCISDeduction read rCurrencyVal write wCurrencyVal;
+    // The date the invoice was fully paid. Only returned on fully paid invoices
+    property FullyPaidOnDate : TDateTime index xifFullyPaidOnDate read rDateTimeVal write wDateTimeVal;
+    // Sum of all credit notes, over-payments and pre-payments applied to invoice
+    property AmountCredited : Currency index xifAmountCredited read rCurrencyVal write wCurrencyVal;
+  end;
+
+  TXEROInvoiceList = class(TXEROObjectList<TXEROInvoice>)
+  public
+    class function PropListName : String; override;
+  end;
+
+  // Detail Elements for Purchases and Sales
+  TXEROItemPriceDetailField = (xipdfUnitPrice, xipdfAccountCode, xipdfCOGSAccountCode, xipdfTaxType);
+  TXEROItemPriceDetail = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+  published
+    // Unit Price of the item. By default UnitPrice is returned to two decimal places. You can use 4 decimal places by adding the unitdp=4 querystring parameter to your request.
+    property UnitPrice : Currency index xipdfUnitPrice read rCurrencyVal write wCurrencyVal;
+    // Default account code to be used for purchased/sale. Not applicable to the purchase details of tracked items
+    property AccountCode : String index xipdfAccountCode read rStringVal write wStringVal;
+    // Cost of goods sold account. Only applicable to the purchase details of tracked items.
+    property COGSAccountCode : String index xipdfCOGSAccountCode read rStringVal write wStringVal;
+    // Used as an override if the default Tax Code for the selected AccountCode is not correct - see TaxTypes.
+    property TaxType : String index xipdfTaxType read rStringVal write wStringVal;
+  end;
+
+  TXEROPurchaseDetails = TXEROItemPriceDetail;
+  TXEROSalesDetails = TXEROItemPriceDetail;
+
+  TXEROItemField = (
+    xifItemID, xifCode, xifName, xifIsSold, xifIsPurchased, xifDescription,
+    xifPurchaseDescription, xifPurchaseDetails, xifSalesDetails,
+    xifIsTrackedAsInventory, xifInventoryAssetAccountCode, xifTotalCostPool,
+    xifQuantityOnHand, xifStockUpdatedDateUTC
+    );
+  TXEROItem = class(TXEROObject)
+  public
+    class function PropTypeIndex( AField : Word) : TXEROPropertyMapEntry; override;
+    class function PropInfo( AField : Word ) : TXEROPropertyEntry; override;
+    class function PropTypeCount( APropType : TXEROPropertyType) : integer; override;
+    class function PropFieldID( AFieldName : String) : integer; override;
+    class function PropObjectName : String; override;
+    class function PropSpecialFieldID( Field : TXEROSpecialField) : integer; override;
+  protected
+    FPurchaseDetails : TXEROPurchaseDetails;
+    FSalesDetails : TXEROSalesDetails;
+    function rPurchaseDetails : TXEROPurchaseDetails;
+    procedure wPurchaseDetails(ANewVal : TXEROPurchaseDetails);
+    function rSalesDetails : TXEROSalesDetails;
+    procedure wSalesDetails(ANewVal : TXEROSalesDetails);
+    function GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject; override;
+
+    // Can output a conditional field.
+    function CanOutField( Field : integer; mode : TXEROSerialiseOutputMode) : boolean; override;
+  public
+    procedure BeforeDestruction; override;
+  published
+    // Xero generated identifier for an item
+    property ItemID : String index xifItemID read rStringVal write wStringVal;
+    // User defined item code
+    property Code : String index xifCode read rStringVal write wStringVal;
+    // The name of the item
+    property ItemName : String index xifName read rStringVal write wStringVal;
+    // Boolean value. When IsSold is true the item will be available on sales transactions in the Xero UI.
+    property IsSold : Boolean index xifIsSold read rBooleanVal write wBooleanVal;
+    // Boolean value. When IsPurchased is true the item is available for purchase transactions in the Xero UI.
+    property IsPurchased : Boolean index xifIsPurchased read rBooleanVal write wBooleanVal;
+    // The sales description of the item
+    property Description : String index xifDescription read rStringVal write wStringVal;
+    // The purchase description of the item
+    property PurchaseDescription : String index xifPurchaseDescription read rStringVal write wStringVal;
+    // See Purchases & Sales. The PurchaseDetails element can contain a number of individual sub-elements.
+    property PurchaseDetails : TXEROPurchaseDetails read rPurchaseDetails write wPurchaseDetails;
+    // See Purchases & Sales. The SalesDetails element can contain a number of individual sub-elements.
+    property SalesDetails : TXEROSalesDetails read rSalesDetails write wSalesDetails;
+    // True for items that are tracked as inventory. An item will be tracked as inventory if the InventoryAssetAccountCode and COGSAccountCode are set.
+    property IsTrackedAsInventory : Boolean index xifIsTrackedAsInventory read rBooleanVal write wBooleanVal;
+    // The inventory asset account for the item. The account must be of type INVENTORY. The COGSAccountCode in PurchaseDetails is also required to create a tracked item
+    property InventoryAssetAccountCode : String index xifInventoryAssetAccountCode read rStringVal write wStringVal;
+    // The value of the item on hand. Calculated using average cost accounting.
+    property TotalCostPool : Currency index xifTotalCostPool read rCurrencyVal write wCurrencyVal;
+    // The quantity of the item on hand
+    property QuantityOnHand : Currency index xifQuantityOnHand read rCurrencyVal write wCurrencyVal;
+    // Last modified date in UTC format
+    property UpdatedDateUTC : TDateTime index xifStockUpdatedDateUTC read rDateTimeVal write wDateTimeVal;
+  end;
+  TXEROItemList = class(TXEROObjectList<TXEROItem>)
+  public
+    class function PropListName : String; override;
+  end;
+
   //: Sort direction for 'Order by'
   TXEROSortDirection = (xsdAscending, xsdDescending );
 
@@ -1130,6 +1828,51 @@ type
 
     // Update a tax rate
     function StoreTaxRate(taxRate: TXeroTaxRate) : boolean;
+
+    // Contacts.
+    function GetContacts(AContactList : TXEROContactList; const AQuery : String = '') : boolean; overload;
+    function GetContacts(AContactList : TXEROContactList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean; overload;
+    function GetContact(AContact : TXEROContact; const AContactUID : String) : boolean;
+
+    function StoreContact(AContact : TXEROContact) : boolean;
+    function StoreContacts(AContactList, responseList : TXEROContactList) : boolean;
+
+    // Invoices
+    function GetInvoices(AInvoiceList : TXEROInvoiceList; const AQuery : String = '') : boolean; overload;
+    function GetInvoices(AInvoiceList : TXEROInvoiceList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean; overload;
+    function GetInvoice(AInvoice : TXEROInvoice; const AInvoiceUID : String) : boolean;
+
+    {: Store an invoice.
+      Invoice is updated from call.
+      @param AInvoice Invoice to Store
+      @param AUnitDp  Decimal Points for 'Unit Cost' (defaults to 2)
+    }
+    function StoreInvoice(AInvoice : TXEROInvoice; AUnitDp : integer =-1 ) : boolean;
+    {: Store multiple invoices.
+      @param AInvoicList Invoices to Store
+      @param responseList  Invoices returned from store operation.
+      @param AUnitDp  Decimal Points for 'Unit Cost' (defaults to 2)
+    }
+    function StoreInvoices(AInvoiceList, responseList : TXEROInvoiceList; AUnitDp : integer =-1 ) : boolean;
+
+    // Items (stock)
+    function GetItems(AItemList : TXEROItemList; const AQuery : String = '') : boolean; overload;
+    function GetItems(AItemList : TXEROItemList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean; overload;
+    {: Retrieve Item by ItemID or Code.
+    }
+    function GetItem(AItem : TXEROItem; const AItemUID : String) : boolean;
+
+    function StoreItem(AItem : TXEROItem) : boolean;
+    function StoreItems(AItemList, responseList : TXEROItemList) : boolean;
+
+    // CreditNotes
+    function GetCreditNotes(ACreditNoteList : TXEROCreditNoteList; const AQuery : String = '') : boolean; overload;
+    function GetCreditNotes(ACreditNoteList : TXEROCreditNoteList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean; overload;
+    function GetCreditNote(ACreditNote : TXEROCreditNote; const ACreditNoteUID : String) : boolean;
+
+    function StoreCreditNote(ACreditNote : TXEROCreditNote) : boolean;
+    function StoreCreditNotes(ACreditNoteList, responseList : TXEROCreditNoteList) : boolean;
+
   end;
 
   { Internal loader for a list.
@@ -1145,7 +1888,8 @@ type
     procedure StartChildObject; override;
     procedure EndingChildObject; override;
   end;
-    TXEROLoaderGenericBase = class(TXEROObjectLoaderBase)
+
+  TXEROLoaderGenericBase = class(TXEROObjectLoaderBase)
   protected
     FList : TXEROObjectListBase;
     FOwnsCur : boolean;
@@ -1229,8 +1973,8 @@ const
     ( PropType: xptEnum;       PropName: 'OrganisationEntityType'; PropDefault: ''; PropUsage : []; ),
     ( PropType: xptString;     PropName: 'ShortCode';              PropDefault: ''; PropUsage : []; ),
     ( PropType: xptString;     PropName: 'LineOfBusiness';         PropDefault: ''; PropUsage : []; ),
-    ( PropType: xptString;     PropName: 'Addresses';              PropDefault: ''; PropUsage : []; ),
-    ( PropType: xptString;     PropName: 'Phones';                 PropDefault: ''; PropUsage : []; ),
+    ( PropType: xptList;       PropName: 'Addresses';              PropDefault: ''; PropUsage : []; ),
+    ( PropType: xptList;       PropName: 'Phones';                 PropDefault: ''; PropUsage : []; ),
     ( PropType: xptString;     PropName: 'PaymentTerms';           PropDefault: ''; PropUsage : []; ),
     ( PropType: xptList;       PropName: 'ExternalLinks';          PropDefault: ''; PropUsage : []; )
   );
@@ -1269,7 +2013,7 @@ CManualJournalProperties : array[ord(low(TXEROManualJournalField))..ord(high(TXE
   ( PropType: xptString;   PropName: 'ManualJournalID';          PropDefault: ''; PropUsage: [xpuReqUpdate];),
   ( PropType: xptString;   PropName: 'Narration';                PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate];),
   ( PropType: xptDateTime; PropName: 'Date';                     PropDefault: ''; PropUsage: [xpuReqNew, xpuUpdate];),
-  ( PropType: xptString;   PropName: 'LineAmountTypes';          PropDefault: ''; PropUsage: [xpuNew, xpuUpdate];),
+  ( PropType: xptEnum;     PropName: 'LineAmountTypes';          PropDefault: ''; PropUsage: [xpuNew, xpuUpdate];),
   ( PropType: xptEnum;     PropName: 'Status';                   PropDefault: 'DRAFT'; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank];),
   ( PropType: xptString;   PropName: 'Url';                      PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank];),
   ( PropType: xptBoolean;  PropName: 'ShowOnCashBasisReports';   PropDefault: 'true'; PropUsage: [xpuNew, xpuUpdate];),
@@ -1318,6 +2062,194 @@ CTaxRateProperties  : array[ord(low(TXEROTaxRateField))..ord(high(TXEROTaxRateFi
   ( PropType: xptCurrency; PropName: 'EffectiveRate';        PropDefault: '';       PropUsage: [xpuReqNew, xpuReqUpdate];)
 );
 
+CInvoicesProperties : array[ord(low(TXEROInvoicesField))..ord(high(TXEROInvoicesField))] of TXEROPropertyEntry = (
+( PropType: xptEnum;     PropName: 'Type';                PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See Invoice Types
+( PropType: xptObject;   PropName: 'Contact';             PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See Contacts
+( PropType: xptDateTime; PropName: 'Date';                PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Date invoice was issued - YYYY-MM-DD
+( PropType: xptDateTime; PropName: 'DueDate';             PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Date invoice is due - YYYY-MM-DD
+( PropType: xptEnum;     PropName: 'Status';              PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // See Invoice Status Codes
+( PropType: xptEnum;     PropName: 'LineAmountTypes';     PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // See Line Amount Types
+( PropType: xptList;     PropName: 'LineItems';           PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See LineItems. The LineItems collection can contain any number of individual LineItem sub-elements.
+( PropType: xptCurrency; PropName: 'SubTotal';            PropDefault: ''; PropUsage : []; ), // Total of invoice excluding taxes
+( PropType: xptCurrency; PropName: 'TotalTax';            PropDefault: ''; PropUsage : []; ), // Total tax on invoice
+( PropType: xptCurrency; PropName: 'Total';               PropDefault: ''; PropUsage : []; ), // Total of Invoice tax inclusive (i.e. SubTotal + TotalTax)
+( PropType: xptCurrency; PropName: 'TotalDiscount';       PropDefault: ''; PropUsage : []; ), // Total of discounts applied on the invoice line items
+( PropType: xptDateTime; PropName: 'UpdatedDateUTC';      PropDefault: ''; PropUsage : []; ), // Last modified date UTC format
+( PropType: xptString;   PropName: 'CurrencyCode';        PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // The currency that invoice has been raised in (see Currencies)
+( PropType: xptCurrency; PropName: 'CurrencyRate';        PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // The currency rate for a multicurrency invoice
+( PropType: xptString;   PropName: 'InvoiceID';           PropDefault: ''; PropUsage : [xpuReqUpdate]; ), // Xero generated unique identifier for invoice
+( PropType: xptString;   PropName: 'InvoiceNumber';       PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // ACCREC - Unique alpha numeric code identifying invoice .. ACCPAY - non-unique alpha numeric code identifying invoice. This value will also display as Reference in the UI.
+
+( PropType: xptString;   PropName: 'Reference';           PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // ACCREC only - additional reference number
+( PropType: xptString;   PropName: 'BrandingThemeID';     PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // See BrandingThemes
+( PropType: xptString;   PropName: 'Url';                 PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // URL link to a source document - shown as "Go to [appName]" in the Xero app
+( PropType: xptBoolean;  PropName: 'SentToContact';       PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Boolean to indicate whether the invoice in the Xero app displays as "sent"
+( PropType: xptDateTime; PropName: 'ExpectedPaymentDate'; PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Shown on sales invoices (Accounts Receivable) when this has been set
+( PropType: xptDateTime; PropName: 'PlannedPaymentDate';  PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Shown on bills (Accounts Payable) when this has been set
+( PropType: xptBoolean;  PropName: 'HasAttachments';      PropDefault: ''; PropUsage : []; ), // boolean to indicate if an invoice has an attachment
+( PropType: xptList;     PropName: 'Payments';            PropDefault: ''; PropUsage : []; ), // See Payments
+( PropType: xptList;     PropName: 'CreditNotes';         PropDefault: ''; PropUsage : []; ), // Details of credit notes that have been applied to an invoice
+( PropType: xptList;     PropName: 'Prepayments';         PropDefault: ''; PropUsage : []; ), // See Prepayments
+( PropType: xptList;     PropName: 'Overpayments';        PropDefault: ''; PropUsage : []; ), // See Overpayments
+( PropType: xptCurrency; PropName: 'AmountDue';           PropDefault: ''; PropUsage : []; ), // Amount remaining to be paid on invoice
+( PropType: xptCurrency; PropName: 'AmountPaid';          PropDefault: ''; PropUsage : []; ), // Sum of payments received for invoice
+( PropType: xptCurrency; PropName: 'CISDeduction';        PropDefault: ''; PropUsage : []; ), // CISDeduction withheld by the contractor to be paid to HMRC on behalf of subcontractor (Available for organisations under UK Construction Industry Scheme)
+( PropType: xptDateTime; PropName: 'FullyPaidOnDate';     PropDefault: ''; PropUsage : []; ), // The date the invoice was fully paid. Only returned on fully paid invoices
+( PropType: xptCurrency; PropName: 'AmountCredited';      PropDefault: ''; PropUsage : []; ) // Sum of all credit notes, over-payments and pre-payments applied to invoice
+);
+
+CInvoiceLineItemProperties : array[ord(low(TXEROInvoiceLineItemField))..ord(high(TXEROInvoiceLineItemField))] of TXEROPropertyEntry = (
+( PropType: xptString;   PropName: 'Description';  PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // The description of the line item
+( PropType: xptCurrency; PropName: 'Quantity';     PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // LineItem Quantity
+( PropType: xptCurrency; PropName: 'UnitAmount';   PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // Lineitem unit amount. By default, unit amount will be rounded to two decimal places. You can opt in to use four decimal places by adding the querystring parameter unitdp=4 to your query. See the Rounding in Xero guide for more information.
+( PropType: xptString;   PropName: 'ItemCode';     PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See Items
+( PropType: xptString;   PropName: 'AccountCode';  PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See Accounts
+( PropType: xptString;   PropName: 'LineItemID';   PropDefault: ''; PropUsage : [xpuReqUpdate]; ), // The Xero generated identifier for a LineItem
+( PropType: xptString;   PropName: 'TaxType';      PropDefault: ''; PropUsage : [xpuNew, xpuUpdate,xpuSkipBlank]; ), // Used as an override if the default Tax Code for the selected AccountCode is not correct - see TaxTypes.
+( PropType: xptCurrency; PropName: 'TaxAmount';    PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The tax amount is auto calculated as a percentage of the line amount based on the tax rate
+( PropType: xptCurrency; PropName: 'LineAmount';   PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The line amount reflects the discounted price if a DiscountRate has been used i.e LineAmount = Quantity * Unit Amount * ((100 - DiscountRate)/100)
+( PropType: xptCurrency; PropName: 'DiscountRate'; PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // Percentage discount being applied to a line item (only supported on ACCREC invoices - ACC PAY invoices and credit notes in Xero do not support discounts
+( PropType: xptList{TXEROTrackingCategoryOptionList};PropName: 'Tracking';PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ) // Section for optional Tracking Category - see TrackingCategory. Any LineItem can have a maximum of 2 TrackingCategory elements.
+);
+
+// The following elements are returned in a GET BrandingThemes response
+CBrandingThemeProperties  : array[ord(low(TXEROBrandingThemeField))..ord(high(TXEROBrandingThemeField))] of TXEROPropertyEntry = (
+( PropType: xptString;   PropName: 'BrandingThemeID'; PropDefault: ''; PropUsage : [xpuReqUpdate]; ), // Xero identifier
+( PropType: xptString;   PropName: 'Name';            PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // Name of branding theme
+( PropType: xptString;   PropName: 'SortOrder';       PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // Integer - ranked order of branding theme. The default branding theme has a value of 0
+( PropType: xptDateTime; PropName: 'CreatedDateUTC';  PropDefault: ''; PropUsage : []; ) // UTC timestamp of creation date of branding theme
+);
+
+CContactProperties :  array[ord(low(TXEROContactField))..ord(high(TXEROContactField))] of TXEROPropertyEntry = (
+( PropType: xptString;   PropName: 'ContactID';                 PropDefault: ''; PropUsage : [xpuReqUpdate]; ), // Xero identifier
+( PropType: xptString;   PropName: 'ContactNumber';             PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // This field is read only in the Xero UI, used to identify contacts in external systems. It is displayed as Contact Code in the Contacts UI in Xero.
+( PropType: xptString;   PropName: 'AccountNumber';             PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // A user defined account number. This can be updated via the API and the Xero UI
+( PropType: xptEnum;     PropName: 'ContactStatus';             PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Current status of a contact - see contact status types
+( PropType: xptString;   PropName: 'Name';                      PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // Full name of contact/organisation
+( PropType: xptString;   PropName: 'FirstName';                 PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // First name of contact person
+( PropType: xptString;   PropName: 'LastName';                  PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Last name of contact person
+( PropType: xptString;   PropName: 'EmailAddress';              PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Email address of contact person
+( PropType: xptString;   PropName: 'SkypeUserName';             PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Skype user name of contact
+( PropType: xptString;   PropName: 'BankAccountDetails';        PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Bank account number of contact
+( PropType: xptString;   PropName: 'TaxNumber';                 PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Tax number of contact - this is also known as the ABN (Australia), GST Number (New Zealand), VAT Number (UK) or Tax ID Number (US and global) in the Xero UI depending on which regionalized version of Xero you are using
+( PropType: xptString;   PropName: 'AccountsReceivableTaxType'; PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Default tax type used for contact on AR invoices
+( PropType: xptString;   PropName: 'AccountsPayableTaxType';    PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Default tax type used for contact on AP invoices
+
+( PropType: xptList;     PropName: 'Addresses';                 PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // Store certain address types for a contact - see address types
+( PropType: xptList;     PropName: 'Phones';                    PropDefault: ''; PropUsage : [xpuNew, xpuUpdate, xpuSkipBlank]; ), // Store certain phone types for a contact - see phone types
+
+( PropType: xptBoolean;  PropName: 'IsSupplier';                PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // true or false - Boolean that describes if a contact that has any AP invoices entered against them
+( PropType: xptBoolean;  PropName: 'IsCustomer';                PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // true or false - Boolean that describes if a contact has any AR invoices entered against them
+( PropType: xptString;   PropName: 'DefaultCurrency';           PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Default currency for raising invoices against contact
+( PropType: xptDateTime; PropName: 'UpdatedDateUTC';            PropDefault: ''; PropUsage : []; ), // UTC timestamp of last update to contact
+// The following are only retrieved on GET requests for a single contact or when pagination is used
+( PropType: xptList;     PropName: 'ContactPersons';              PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // See contact persons. A contact can have a maximum of 5 ContactPersons
+( PropType: xptString;   PropName: 'XeroNetworkKey';              PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Store XeroNetworkKey for contacts.
+( PropType: xptString;   PropName: 'SalesDefaultAccountCode';     PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The default sales account code for contacts
+( PropType: xptString;   PropName: 'PurchasesDefaultAccountCode'; PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The default purchases account code for contacts
+( PropType: xptList;     PropName: 'SalesTrackingCategories';     PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The default sales tracking categories for contacts
+( PropType: xptList;     PropName: 'PurchasesTrackingCategories'; PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The default purchases tracking categories for contacts
+( PropType: xptString;   PropName: 'TrackingCategoryName';        PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The name of the Tracking Category assigned to the contact under SalesTrackingCategories and PurchasesTrackingCategories
+( PropType: xptString;   PropName: 'TrackingOptionName';          PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The name of the Tracking Option assigned to the contact under SalesTrackingCategories and PurchasesTrackingCategories
+( PropType: xptEnum;     PropName: 'PaymentTerms';                PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The default payment terms for the contact - see Payment Terms
+( PropType: xptString;   PropName: 'ContactGroups';               PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Displays which contact groups a contact is included in
+( PropType: xptString;   PropName: 'Website';                     PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Website address for contact
+( PropType: xptObject;   PropName: 'BrandingTheme';               PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Default branding theme for contact - see Branding Themes
+( PropType: xptString;   PropName: 'BatchPayments';               PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // batch payment details for contact
+( PropType: xptCurrency; PropName: 'Discount';                    PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // The default discount rate for the contact
+( PropType: xptString;   PropName: 'Balances';                    PropDefault: ''; PropUsage : []; ), // The raw AccountsReceivable(sales invoices) and AccountsPayable(bills) outstanding and overdue amounts, not converted to base currency
+( PropType: xptBoolean;  PropName: 'HasAttachments';              PropDefault: ''; PropUsage : []; ) // A boolean to indicate if a contact has an attachment
+);
+
+// Elements for ContactPerson
+CContactPersonProperties :  array[ord(low(TXEROContactPersonField))..ord(high(TXEROContactPersonField))] of TXEROPropertyEntry = (
+( PropType: xptString;     PropName: 'FirstName';       PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // First name of person
+( PropType: xptString;     PropName: 'LastName';        PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // Last name of person
+( PropType: xptString;     PropName: 'EmailAddress';    PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // Email address of person
+( PropType: xptBoolean;    PropName: 'IncludeInEmails'; PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ) // boolean to indicate whether contact should be included on emails with invoices etc.
+);
+
+// Elements for Item
+CItemProperties :  array[ord(low(TXEROItemField))..ord(high(TXEROItemField))] of TXEROPropertyEntry = (
+( PropType: xptString;     PropName: 'ItemID';                   PropDefault: ''; PropUsage: [xpuReqUpdate]; ), // Xero generated identifier for an item
+( PropType: xptString;     PropName: 'Code';                     PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // User defined item code
+( PropType: xptString;     PropName: 'Name';                     PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The name of the item
+( PropType: xptBoolean;    PropName: 'IsSold';                   PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // Boolean value. When IsSold is true the item will be available on sales transactions in the Xero UI.
+( PropType: xptBoolean;    PropName: 'IsPurchased';              PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // Boolean value. When IsPurchased is true the item is available for purchase transactions in the Xero UI.
+( PropType: xptString;     PropName: 'Description';              PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // The sales description of the item
+( PropType: xptString;     PropName: 'PurchaseDescription';      PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // The purchase description of the item
+( PropType: xptObject;     PropName: 'PurchaseDetails';          PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuConditional]; ), // See Purchases & Sales. The PurchaseDetails element can contain a number of individual sub-elements.
+( PropType: xptObject;     PropName: 'SalesDetails';             PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuConditional]; ), // See Purchases & Sales. The SalesDetails element can contain a number of individual sub-elements.
+( PropType: xptBoolean;    PropName: 'IsTrackedAsInventory';     PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // True for items that are tracked as inventory. An item will be tracked as inventory if the InventoryAssetAccountCode and COGSAccountCode are set.
+( PropType: xptString;     PropName: 'InventoryAssetAccountCode';PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The inventory asset account for the item. The account must be of type INVENTORY. The COGSAccountCode in PurchaseDetails is also required to create a tracked item
+( PropType: xptCurrency;   PropName: 'TotalCostPool';            PropDefault: ''; PropUsage: []; ), // The value of the item on hand. Calculated using average cost accounting.
+( PropType: xptCurrency;   PropName: 'QuantityOnHand';           PropDefault: ''; PropUsage: []; ), // The quantity of the item on hand
+( PropType: xptDateTime;   PropName: 'UpdatedDateUTC';           PropDefault: ''; PropUsage: []; ) // Last modified date in UTC format
+);
+
+// Detail Elements for Purchases and Sales
+CItemPriceDetailProperties :  array[ord(low(TXEROItemPriceDetailField))..ord(high(TXEROItemPriceDetailField))] of TXEROPropertyEntry = (
+( PropType: xptCurrency;   PropName: 'UnitPrice';        PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // Unit Price of the item. By default UnitPrice is returned to two decimal places. You can use 4 decimal places by adding the unitdp=4 querystring parameter to your request.
+( PropType: xptString;     PropName: 'AccountCode';      PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // Default account code to be used for purchased/sale. Not applicable to the purchase details of tracked items
+( PropType: xptString;     PropName: 'COGSAccountCode';  PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // Cost of goods sold account. Only applicable to the purchase details of tracked items.
+( PropType: xptString;     PropName: 'TaxType';          PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ) // Used as an override if the default Tax Code for the selected AccountCode is not correct - see TaxTypes.
+);
+
+CPaymentProperties :  array[ord(low(TXEROPaymentField))..ord(high(TXEROPaymentField))] of TXEROPropertyEntry = (
+  ( PropType: xptString;     PropName: 'PaymentID';      PropDefault: ''; PropUsage: [xpuReqUpdate]; ), // Ident of payment
+  ( PropType: xptDateTime;   PropName: 'Date';           PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // Date the payment is being made (YYYY-MM-DD) e.g. 2009-09-06
+  ( PropType: xptCurrency;   PropName: 'CurrencyRate';   PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // Exchange rate when payment is received. Only used for non base currency invoices and credit notes e.g. 0.7500
+  ( PropType: xptCurrency;   PropName: 'Amount';         PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // The amount of the payment. Must be less than or equal to the outstanding amount owing on the invoice e.g. 200.00
+  ( PropType: xptString;     PropName: 'Reference';      PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // An optional description for the payment e.g. Direct Debit
+  ( PropType: xptBoolean;    PropName: 'IsReconciled';   PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // An optional parameter for the payment. Conversion related apps can utilise the IsReconciled flag in scenarios when a matching bank statement line is not available. Learn more
+  ( PropType: xptEnum;       PropName: 'Status';         PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The status of the payment.
+  ( PropType: xptEnum;       PropName: 'PaymentType';    PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Payment Types.
+  ( PropType: xptDateTime;   PropName: 'UpdatedDateUTC'; PropDefault: ''; PropUsage: []; ), // UTC timestamp of last update to the payment
+  ( PropType: xptObject;     PropName: 'Account';        PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The Account the payment was made from
+  ( PropType: xptObject;     PropName: 'Invoice';        PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The Invoice the payment was made against
+  ( PropType: xptObject;     PropName: 'CreditNote';     PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The Credit Note the payment was made against
+  ( PropType: xptObject;     PropName: 'Prepayments';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // The Prepayment the payment was made against
+  ( PropType: xptObject;     PropName: 'Overpayment';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; )  // The Overpayment the payment was made against
+);
+
+CCreditNoteProperties :  array[ord(low(TXEROCreditNoteField))..ord(high(TXEROCreditNoteField))] of TXEROPropertyEntry = (
+( PropType: xptString;     PropName: 'CreditNoteID';    PropDefault: ''; PropUsage: [xpuReqUpdate]; ), // Xero generated unique identifier
+( PropType: xptEnum;       PropName: 'Type';            PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Credit Note Types
+( PropType: xptObject;     PropName: 'Contact';         PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Contacts
+( PropType: xptDateTime;   PropName: 'Date';            PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // The date the credit note is issued YYYY-MM-DD. If the Date element is not specified then it will default to the current date based on the timezone setting of the organisation
+( PropType: xptEnum;       PropName: 'Status';          PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Credit Note Status Codes
+( PropType: xptEnum;       PropName: 'LineAmountTypes'; PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Invoice Line Amount Types
+( PropType: xptList;       PropName: 'LineItems';       PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Invoice Line Items
+( PropType: xptCurrency;   PropName: 'SubTotal';        PropDefault: ''; PropUsage: []; ), // The subtotal of the credit note excluding taxes
+( PropType: xptCurrency;   PropName: 'TotalTax';        PropDefault: ''; PropUsage: []; ), // The total tax on the credit note
+( PropType: xptCurrency;   PropName: 'Total';           PropDefault: ''; PropUsage: []; ), // The total of the Credit Note(subtotal + total tax)
+( PropType: xptCurrency;   PropName: 'CISDeduction';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // CISDeduction withheld by the contractor to be paid to HMRC on behalf of subcontractor (Available for organisations under UK Construction Industry Scheme)
+( PropType: xptDateTime;   PropName: 'UpdatedDateUTC';  PropDefault: ''; PropUsage: []; ), // UTC timestamp of last update to the credit note
+( PropType: xptString;     PropName: 'CurrencyCode';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // Currency used for the Credit Note
+( PropType: xptDateTime;   PropName: 'FullyPaidOnDate'; PropDefault: ''; PropUsage: []; ), // Date when credit note was fully paid(UTC format)
+( PropType: xptString;     PropName: 'CreditNoteNumber';PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // ACCRECCREDIT - Unique alpha numeric code identifying credit note.  ACCPAYCREDIT - Non-unique alpha numeric code identifying credit note. This value will also display as Reference in the UI.
+( PropType: xptString;     PropName: 'Reference';       PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // ACCRECCREDIT only - additional reference number
+( PropType: xptBoolean;    PropName: 'SentToContact';   PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ), // boolean to indicate if a credit note has been sent to a contact via the Xero app (currently read only)
+( PropType: xptCurrency;   PropName: 'CurrencyRate';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // The currency rate for a multicurrency invoice. If no rate is specified, the XE.com day rate is used
+( PropType: xptCurrency;   PropName: 'RemainingCredit'; PropDefault: ''; PropUsage: []; ), // The remaining credit balance on the Credit Note
+( PropType: xptString;     PropName: 'Allocations';     PropDefault: ''; PropUsage: []; ), // See Allocations
+( PropType: xptString;     PropName: 'BrandingThemeID'; PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ), // See BrandingThemes
+( PropType: xptBoolean;    PropName: 'HasAttachments';  PropDefault: ''; PropUsage: []; )  // boolean to indicate if a credit note has an attachment
+);
+
+CAddressProperties :  array[ord(low(TXEROAddressField))..ord(high(TXEROAddressField))] of TXEROPropertyEntry = (
+( PropType: xptEnum;       PropName: 'AddressType';     PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ),
+( PropType: xptString;     PropName: 'AddressLine1';    PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ),
+( PropType: xptString;     PropName: 'AddressLine2';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'AddressLine3';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'AddressLine4';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'City';            PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
+( PropType: xptString;     PropName: 'Region';          PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
+( PropType: xptString;     PropName: 'PostalCode';      PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
+( PropType: xptString;     PropName: 'Country';         PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
+( PropType: xptString;     PropName: 'AttentionTo';     PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; )
+);
+
 type
   TXERONameEntry = record
     PropName : String;
@@ -1341,7 +2273,17 @@ var
   G_ManualJournalMap,
   G_ManualJournalLineMap,
   G_TaxComponentMap,
-  G_TaxRateMap
+  G_TaxRateMap,
+  G_InvoicesMap,
+  G_InvoiceLineItemMap,
+  G_BrandingThemeMap,
+  G_ContactMap,
+  G_ContactPersonMap,
+  G_ItemMap,
+  G_ItemPriceDetailMap,
+  G_PaymentMap,
+  G_CreditNoteMap,
+  G_AddressMap
   : TXEROPropertyMap;
 
 
@@ -1387,6 +2329,51 @@ var
   );
   CXEROAccountStatustype : array [TXEROAccountStatus] of string = (
     '', 'ACTIVE', 'ARCHIVED'
+  );
+
+  CXEROInvoicesStatus : array [TXEROInvoicesStatus] of string = (
+    '', 'DRAFT', 'SUBMITTED', 'DELETED', 'AUTHORISED', 'PAID', 'VOIDED'
+  );
+
+  CXEROInvoicesType : array[TXEROInvoicesType ] of string = (
+    '', 'ACCPAY', 'ACCREC'
+  );
+
+  // Credit note has same options as invoice, but with 'CREDIT' suffix
+  CXEROCreditNoteType : array[TXEROInvoicesType] of string = (
+    '', 'ACCPAYCREDIT', 'ACCRECCREDIT'
+  );
+
+  CXEROCreditNoteStatus : array[TXEROCreditNoteStatus] of string = (
+  '', 'SUBMITTED', 'AUTHORISED', 'PAID'
+  );
+
+  CXEROLineAmountTypes: array[TXEROLineAmountTypes] of string = (
+    '', 'NoTax', 'Exclusive', 'Inclusive'
+  );
+
+  CXEROContactStatus : array[TXEROContactStatus] of string = (
+    '', 'ACTIVE', 'ARCHIVED', 'GDPRREQUEST'
+  );
+  CXEROPaymentTerms : array[TXEROPaymentTerms] of string = (
+    '', 'DAYSAFTERBILLDATE', 'DAYSAFTERBILLMONTH', 'OFCURRENTMONTH'
+  );
+
+
+  CXEROPaymentType : array[TXEROPaymentType] of string = (
+    '',
+    'ACCRECPAYMENT',        'ACCPAYPAYMENT',
+    'ARCREDITPAYMENT',      'APCREDITPAYMENT',
+    'AROVERPAYMENTPAYMENT', 'ARPREPAYMENTPAYMENT',
+    'APPREPAYMENTPAYMENT',  'APOVERPAYMENTPAYMENT'
+  );
+
+  CXEROPaymentStatus : array[TXEROPaymentStatus] of string= (
+  '', 'AUTHORISED', 'DELETED'
+  );
+
+  CXEROAddressType : array[TXEROAddressType] of string = (
+    '', 'POBOX', 'STREET','DELIVERY'
   );
 
 function DateTimeAsJSONString(ADateTime : TDateTime; forDisplay : boolean) : string; forward;
@@ -1496,6 +2483,218 @@ begin
   result := CXEROAccountStatusType[TXEROAccountStatus(enumVal)];
 end;
 
+function XEROInvoicesStatusAsEnum(const stg : String) : TXEROInvoicesStatus;
+var
+  idx : TXEROInvoicesStatus;
+begin
+  result := low(TXEROInvoicesStatus);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROInvoicesStatus[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROInvoicesStatusAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROInvoicesStatus))) then
+    enumVal := ord(low(TXEROInvoicesStatus));
+  result := CXEROInvoicesStatus[TXEROInvoicesStatus(enumVal)];
+end;
+
+function XEROInvoicesTypeAsEnum(const stg : String) : TXEROInvoicesType;
+var
+  idx : TXEROInvoicesType;
+begin
+  result := low(TXEROInvoicesType);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROInvoicesType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROInvoicesTypeAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROInvoicesType))) then
+    enumVal := ord(low(TXEROInvoicesType));
+  result := CXEROInvoicesType[TXEROInvoicesType(enumVal)];
+end;
+
+function XEROCreditNoteTypeAsEnum(const stg : String) : TXEROInvoicesType;
+var
+  idx : TXEROInvoicesType;
+begin
+  result := low(TXEROInvoicesType);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROCreditNoteType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROCreditNoteTypeAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROInvoicesType))) then
+    enumVal := ord(low(TXEROInvoicesType));
+  result := CXEROCreditNoteType[TXEROInvoicesType(enumVal)];
+end;
+
+function XEROCreditNoteStatusAsEnum(const stg : String) : TXEROCreditNoteStatus;
+var
+  idx : TXEROCreditNoteStatus;
+begin
+  result := low(TXEROCreditNoteStatus);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROCreditNoteStatus[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROCreditNoteStatusAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROCreditNoteStatus))) then
+    enumVal := ord(low(TXEROCreditNoteStatus));
+  result := CXEROCreditNoteStatus[TXEROCreditNoteStatus(enumVal)];
+end;
+
+function XEROLineAmountTypesAsEnum(const stg : String) : TXEROLineAmountTypes;
+var
+  idx : TXEROLineAmountTypes;
+begin
+  result := low(TXEROLineAmountTypes);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROLineAmountTypes[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROLineAmountTypesAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROLineAmountTypes))) then
+    enumVal := ord(low(TXEROLineAmountTypes));
+  result := CXEROLineAmountTypes[TXEROLineAmountTypes(enumVal)];
+end;
+
+function XEROContactStatusAsEnum(const stg : String) : TXEROContactStatus;
+var
+  idx : TXEROContactStatus;
+begin
+  result := low(TXEROContactStatus);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROContactStatus[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROContactStatusAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROContactStatus))) then
+    enumVal := ord(low(TXEROContactStatus));
+  result := CXEROContactStatus[TXEROContactStatus(enumVal)];
+end;
+
+function XEROPaymentTermsAsEnum(const stg : String) : TXEROPaymentTerms;
+var
+  idx : TXEROPaymentTerms;
+begin
+  result := low(TXEROPaymentTerms);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROPaymentTerms[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+
+function XEROPaymentTermsAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROPaymentTerms))) then
+    enumVal := ord(low(TXEROPaymentTerms));
+  result := CXEROPaymentTerms[TXEROPaymentTerms(enumVal)];
+end;
+
+function XEROPaymentTypeAsEnum(const stg : String) : TXEROPaymentType;
+var
+  idx : TXEROPaymentType;
+begin
+  result := low(TXEROPaymentType);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROPaymentType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+
+function XEROPaymentTypeAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROPaymentType))) then
+    enumVal := ord(low(TXEROPaymentType));
+  result := CXEROPaymentType[TXEROPaymentType(enumVal)];
+end;
+
+function XEROPaymentStatusAsEnum(const stg : String) : TXEROPaymentStatus;
+var
+  idx : TXEROPaymentStatus;
+begin
+  result := low(TXEROPaymentStatus);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROPaymentStatus[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+
+function XEROPaymentStatusAsString(enumVal : integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROPaymentStatus))) then
+    enumVal := ord(low(TXEROPaymentStatus));
+  result := CXEROPaymentStatus[TXEROPaymentStatus(enumVal)];
+end;
+
+function XEROAddressTypeAsEnum( stg : String) : TXEROAddressType;
+var
+  idx : TXEROAddressType;
+begin
+  result := low(TXEROAddressType);
+  for idx := low(idx) to high(idx) do
+  begin
+    if CompareText(stg, CXEROAddressType[idx]) = 0 then
+    begin
+      result := idx;
+      break;
+    end;
+  end;
+end;
+function XEROAddressTypeAsString( enumVal : Integer) : String;
+begin
+  if (enumVal < 0) or (enumVal > ord(high(TXEROAddressType))) then
+    enumVal := ord(low(TXEROAddressType));
+  result := CXEROAddressType[TXEROAddressType(enumVal)];
+end;
 
 constructor TXERONameEntry.Search(APropName : String);
 begin
@@ -3130,10 +4329,15 @@ var
 begin
   respStream := TMemoryStream.Create;
   try
-    result := Get(AURI, AParams, respStream, ResponseCode, ErrorDetail, 0, rtJSON);
+    //try
+      result := Get(AURI, AParams, respStream, ResponseCode, ErrorDetail, 0, rtJSON);
+   // except
+
     if not result then
     begin
-      Raise XEROException.Create(responseCode, ErrorDetail);
+      // 404 response getting a single item means it's not there.
+      if ResponseCode <> 404 then
+        Raise XEROException.Create(responseCode, ErrorDetail);
     end
     else
     begin
@@ -3483,6 +4687,291 @@ begin
   end;
 end;
 
+// Contacts.
+function TXEROConnect.GetContacts(AContactList : TXEROContactList; const AQuery : String = '') : boolean;
+begin
+  result := GetContacts(AContactList, AQuery, TXEROOrder.None, -1);
+end;
+
+function TXEROConnect.GetContacts(AContactList : TXEROContactList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := AContactList.GetListLoader;
+  try
+    result := GetLoadList(BuildURI('','contacts', AQuery, AOrder, hatGet, APageNo), nil, 'Contacts', loader);
+    if result then
+    begin
+      AContactList.ResetModified;
+      AContactList.SetIsNew(false);
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.GetContact(AContact : TXEROContact; const AContactUID : String) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('Contact',AContact);
+  try
+    if AContactUID = '' then
+      result := false
+    else
+    begin
+      AContact.Clear;
+      result := GetLoadSingleResult(BuildURI('contacts',AContactUID, TRestParams.None, hatGet), nil, 'Contacts', loader);
+      if result then
+      begin
+        AContact.ResetModified;
+        AContact.IsNew := false;
+      end;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreContact(AContact : TXEROContact) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('Contact', AContact);
+  try
+    result := Store(BuildURI('', 'contacts',TRestParams.None, hatSend),
+      'Contacts', 'Contact', AContact, xsomUpdate, loader);
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreContacts(AContactList, responseList : TXEROContactList) : boolean;
+begin
+  if AContactList.Count = 0 then
+    result := true
+  else
+    result := StoreList(BuildURI('','contacts',TRestParams.None,hatSend),
+      'Contacts', 'Contact', AContactList, responselist, xsomUpdate);
+end;
+
+// Invoices
+function TXEROConnect.GetInvoices(AInvoiceList : TXEROInvoiceList; const AQuery : String = '') : boolean;
+begin
+  result := GetInvoices(AInvoiceList, AQuery, TXEROOrder.None, -1);
+end;
+
+function TXEROConnect.GetInvoices(AInvoiceList : TXEROInvoiceList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := AInvoiceList.GetListLoader;
+  try
+    result := GetLoadList(BuildURI('','invoices', AQuery, AOrder, hatGet, APageNo), nil, 'Invoices', loader);
+    if result then
+    begin
+      AInvoiceList.ResetModified;
+      AInvoiceList.SetIsNew(false);
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.GetInvoice(AInvoice : TXEROInvoice; const AInvoiceUID : String) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('Invoice',AInvoice);
+  try
+    if AInvoiceUID = '' then
+      result := false
+    else
+    begin
+      AInvoice.Clear;
+      result := GetLoadSingleResult(BuildURI('invoices',AInvoiceUID, TRestParams.None, hatGet), nil, 'Invoices', loader);
+      if result then
+      begin
+        AInvoice.ResetModified;
+        AInvoice.IsNew := false;
+      end;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreInvoice(AInvoice : TXEROInvoice; AUnitDp : integer =-1 ) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+  params : TRestParams;
+begin
+  loader := TXEROLoaderGenericBase.Create('Invoice', AInvoice);
+  try
+    params.Clear;
+    if AUnitDp >= 0 then
+      params.Add('unitdp', IntToStr(AUnitDp));
+
+    result := Store(BuildURI('', 'invoices', params, hatSend),
+      'Invoices', 'Invoice', AInvoice, xsomUpdate, loader);
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreInvoices(AInvoiceList, responseList : TXEROInvoiceList; AUnitDp : integer =-1 ) : boolean;
+var
+  params : TRestParams;
+begin
+  if AInvoiceList.Count = 0 then
+    result := true
+  else
+  begin
+    params.Clear;
+    if AUnitDp >= 0 then
+      params.Add('unitdp', IntToStr(AUnitDP));
+    params.Add('SummarizeErrors','false');
+    result := StoreList(BuildURI('','invoices',params,hatSend),
+      'Invoices', 'Invoice', AInvoiceList, responselist, xsomUpdate);
+  end;
+end;
+
+// CreditNotes
+function TXEROConnect.GetCreditNotes(ACreditNoteList : TXEROCreditNoteList; const AQuery : String = '') : boolean;
+begin
+  result := GetCreditNotes(ACreditNoteList, AQuery, TXEROOrder.None, -1);
+end;
+
+function TXEROConnect.GetCreditNotes(ACreditNoteList : TXEROCreditNoteList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := ACreditNoteList.GetListLoader;
+  try
+    result := GetLoadList(BuildURI('','creditnotes', AQuery, AOrder, hatGet, APageNo), nil, 'CreditNotes', loader);
+    if result then
+    begin
+      ACreditNoteList.ResetModified;
+      ACreditNoteList.SetIsNew(false);
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.GetCreditNote(ACreditNote : TXEROCreditNote; const ACreditNoteUID : String) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('CreditNote',ACreditNote);
+  try
+    if ACreditNoteUID = '' then
+      result := false
+    else
+    begin
+      ACreditNote.Clear;
+      result := GetLoadSingleResult(BuildURI('creditnotes',ACreditNoteUID, TRestParams.None, hatGet), nil, 'CreditNotes', loader);
+      if result then
+      begin
+        ACreditNote.ResetModified;
+        ACreditNote.IsNew := false;
+      end;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreCreditNote(ACreditNote : TXEROCreditNote) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('CreditNote', ACreditNote);
+  try
+    result := Store(BuildURI('', 'creditnotes',TRestParams.None, hatSend),
+      'CreditNotes', 'CreditNote', ACreditNote, xsomUpdate, loader);
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreCreditNotes(ACreditNoteList, responseList : TXEROCreditNoteList) : boolean;
+begin
+  if ACreditNoteList.Count = 0 then
+    result := true
+  else
+    result := StoreList(BuildURI('','creditnotes',TRestParams.Param('SummarizeErrors','false'),hatSend),
+      'CreditNotes', 'CreditNote', ACreditNoteList, responselist, xsomUpdate);
+end;
+
+// Items
+function TXEROConnect.GetItems(AItemList : TXEROItemList; const AQuery : String = '') : boolean;
+begin
+  result := GetItems(AItemList, AQuery, TXEROOrder.None, -1);
+end;
+
+function TXEROConnect.GetItems(AItemList : TXEROItemList; const AQuery : String; const AOrder : TXEROOrder; APageNo : Integer = -1 ) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := AItemList.GetListLoader;
+  try
+    result := GetLoadList(BuildURI('','items', AQuery, AOrder, hatGet, APageNo), nil, 'Items', loader);
+    if result then
+    begin
+      AItemList.ResetModified;
+      AItemList.SetIsNew(false);
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.GetItem(AItem : TXEROItem; const AItemUID : String) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('Item',AItem);
+  try
+    if AItemUID = '' then
+      result := false
+    else
+    begin
+      AItem.Clear;
+      result := GetLoadSingleResult(BuildURI('items',AItemUID, TRestParams.None, hatGet), nil, 'Items', loader);
+      if result then
+      begin
+        AItem.ResetModified;
+        AItem.IsNew := false;
+      end;
+    end;
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreItem(AItem : TXEROItem) : boolean;
+var
+  loader : TJSONSAXNestableHandler;
+begin
+  loader := TXEROLoaderGenericBase.Create('Item', AItem);
+  try
+    result := Store(BuildURI('', 'items',TRestParams.None, hatSend),
+      'Items', 'Item', AItem, xsomUpdate, loader);
+  finally
+    loader.Free;
+  end;
+end;
+
+function TXEROConnect.StoreItems(AItemList, responseList : TXEROItemList) : boolean;
+begin
+  if AItemList.Count = 0 then
+    result := true
+  else
+    result := StoreList(BuildURI('','items',TRestParams.None,hatSend),
+      'Items', 'Item', AItemList, responselist, xsomUpdate);
+end;
+
 // Store an object
 function TXEROConnect.Store( const AURL : String; const AColnName, AObjName : String; AXeroObject : TXEROObject; AMode : TXEROSerialiseOutputMode; AObjectLoader : TJSONSAXNestableHandler) : boolean;
 var
@@ -3567,6 +5056,11 @@ begin
           respStream.Position := 0;
           if not result then
           begin
+            // 404 and 401 don't have any other error information. Assume that is the
+            // case for the rest.
+            if (ResponseCode div 100) = 4 then
+              raise XEROException.Create(ResponseCode, ErrorDetail);
+
             respLoad := TXEROErrorResponseLoader.Create('', @errresp, AResponseListHandler, false);
             parser := TJSONEventReader.Create(respLoad);
             try
@@ -3680,6 +5174,42 @@ end;
 
 // TXEROOrganisation
 //
+//
+function TXEROOrganisation.rAddressesList : TXEROAddressList;
+begin
+  if not assigned(FAddressesList) then
+    FAddressesList := TXEROAddressList.Create;
+  result := FAddressesList
+end;
+
+procedure TXEROOrganisation.wAddressesList(ANewVal : TXEROAddressList);
+begin
+  if assigned(ANewVal) then
+    rAddressesList.Assign(ANewVal)
+  else if Assigned(FAddressesList) then
+    FAddressesList.Clear;
+end;
+function TXEROOrganisation.rPhonesList : TXEROPhonesList;
+begin
+  if not assigned(FPhonesList) then
+    FPhonesList := TXEROPhonesList.Create;
+  result := FPhonesList
+end;
+procedure TXEROOrganisation.wPhonesList(ANewVal : TXEROPhonesList);
+begin
+  if assigned(ANewVal) then
+    rPhonesList.Assign(ANewVal)
+  else if Assigned(FPhonesList) then
+    FPhonesList.Clear;
+end;
+
+class function TXEROOrganisation.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfName:result := ord(xofName);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
 
 class function TXEROOrganisation.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
 begin
@@ -3736,6 +5266,26 @@ function TXEROOrganisation.GetListObject(Field : Integer; Access : TXEROFieldAcc
 begin
   case field of
     ord(xofExternalLinks): result := FExternalLinks;
+    ord(xofAddresses):
+      case access of
+        xfamWrite: result := rAddressesList;
+        xfamClear:
+          begin
+            FreeAndNil(FAddressesList);
+            result := nil
+          end;
+      else result := FAddressesList;
+      end;
+    ord(xofPhones):
+      case access of
+        xfamWrite: result := rPhonesList;
+        xfamClear:
+          begin
+            FreeAndNil(FPhonesList);
+            result := nil
+          end;
+      else result := FPhonesList;
+      end;
   else result := inherited GetListObject(field, Access);
   end;
 end;
@@ -3759,6 +5309,8 @@ end;
 
 Procedure TXEROOrganisation.BeforeDestruction;
 begin
+  FreeAndNil(FAddressesList);
+  FreeAndNil(FPhonesList);
   FreeAndNil(FExternalLinks);
   inherited;
 end;
@@ -4278,6 +5830,21 @@ begin
   wIntegerVal(ord(xmjfStatus), ord(newVal));
 end;
 
+function TXEROManualJournal.rLineAmountTypesEnum(AField : integer) : TXEROLineAmountTypes;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROLineAmountTypes))) then
+    idx := 0;
+  result := TXEROLineAmountTypes(idx);
+end;
+
+procedure TXEROManualJournal.wLineAmountTypesEnum(AField : integer; ANewVal : TXEROLineAmountTypes);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+
 procedure TXEROManualJournal.ResetModified;
 begin
   inherited ResetModified;
@@ -4342,6 +5909,7 @@ begin
         end;
         result := ord(newStatus);
       end;
+    ord(xmjfLineAmountTypes): result := ord(XEROLineAmountTypesAsEnum(StgVal));
   else
     result := inherited PropStringAsEnum(AField, StgVal);
   end;
@@ -4356,6 +5924,7 @@ begin
           intVal := ord(xmjsNotSet);
         result := CManualJournalStatus[TXEROManualJournalStatus(intval)];
       end;
+    ord(xmjfLineAmountTypes): result := XEROLineAmountTypesAsString(intVal);
   else
     result := inherited PropEnumAsString(AField, IntVal);
   end;
@@ -4661,6 +6230,1364 @@ begin
   result := 'TaxRates';
 end;
 
+// TXEROBrandingTheme
+//
+class function TXEROBrandingTheme.PropObjectName : string;
+begin
+  result := 'BrandingTheme';
+end;
+class function TXEROBrandingTheme.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_BrandingThemeMap.Map) then
+    Raise Exception.CreateFmt('Invalid Branding Theme Field %d', [AField]);
+  result := G_BrandingThemeMap.Map[AField];
+end;
+
+class function TXEROBrandingTheme.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_BrandingThemeMap.Map) then
+    Raise Exception.CreateFmt('Invalid Branding Theme Field %d', [AField]);
+  result := CBrandingThemeProperties[AField];
+end;
+
+class function TXEROBrandingTheme.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_BrandingThemeMap.Count[APropType];
+end;
+
+class function TXEROBrandingTheme.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_BrandingThemeMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROBrandingTheme.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xbtfBrandingThemeID );
+    xsfName:result := ord(xbtfName);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+
+
+// TXEROInvoiceLineItem
+//
+procedure TXEROInvoiceLineItem.BeforeDestruction;
+begin
+  FreeAndNil(FTrackingList);
+  inherited;
+end;
+//
+class function TXEROInvoiceLineItem.PropObjectName : string;
+begin
+  result := 'LineItem';
+end;
+function TXEROInvoiceLineItem.rTrackingList : TXEROTrackingCategoryOptionList;
+begin
+  if not assigned(FTrackingList) then
+    FTrackingList := TXEROTrackingCategoryOptionList.Create;
+  result := FTrackingList
+end;
+
+function TXEROInvoiceLineItem.GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase;
+begin
+  case field of
+    ord(xilifTracking):
+      case access of
+        xfamWrite: result := rTrackingList;
+        xfamClear:
+          begin
+            FreeAndNil(FTrackingList);
+            result := nil
+          end;
+      else result := FTrackingList;
+      end;
+  else
+    result := inherited GetListObject(field, Access);
+  end
+end;
+
+procedure TXEROInvoiceLineItem.wTrackingList(ANewVal : TXEROTrackingCategoryOptionList);
+begin
+  if assigned(ANewVal) then
+    rTrackingList.Assign(ANewVal)
+  else if Assigned(FTrackingList) then
+    FTrackingList.Clear;
+end;
+
+class function TXEROInvoiceLineItem.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_InvoiceLineItemMap.Map) then
+    Raise Exception.CreateFmt('Invalid Invoice Line Item Field %d', [AField]);
+  result := G_InvoiceLineItemMap.Map[AField];
+end;
+
+class function TXEROInvoiceLineItem.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_InvoiceLineItemMap.Map) then
+    Raise Exception.CreateFmt('Invalid Invoice Line Item Field %d', [AField]);
+  result := CInvoiceLineItemProperties[AField];
+end;
+
+class function TXEROInvoiceLineItem.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_InvoiceLineItemMap.Count[APropType];
+end;
+
+class function TXEROInvoiceLineItem.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_InvoiceLineItemMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROInvoiceLineItem.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xilifLineItemID);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+
+class function TXEROInvoiceLineItemList.PropListName : String;
+begin
+  result := 'LineItems';
+end;
+
+
+// TXEROInvoice
+//
+
+procedure TXEROInvoice.BeforeDestruction;
+begin
+  FreeAndNil(FContact);
+  FreeAndNil(FLineItemsList);
+  FreeAndNil(FPaymentsList);
+  FreeAndNil(FCreditNotesList);
+  FreeAndNil(FPrepaymentsList);
+  FreeAndNil(FOverpaymentsList);
+  inherited;
+end;
+
+function TXEROInvoice.rTypeEnum(AField : integer) : TXEROInvoicesType;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROInvoicesType))) then
+    idx := 0;
+  result := TXEROInvoicesType(idx);
+end;
+
+procedure TXEROInvoice.wTypeEnum(AField : integer; ANewVal : TXEROInvoicesType);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+
+function TXEROInvoice.rContact : TXEROContact;
+begin
+  if not assigned(FContact) then
+    FContact := TXEROContact.Create;
+  result := FContact
+end;
+procedure TXEROInvoice.wContact(ANewVal : TXEROContact);
+begin
+  if assigned(ANewVal) then
+    rContact.Assign(ANewVal)
+  else if Assigned(FContact) then
+    FContact.Clear;
+end;
+function TXEROInvoice.rStatusEnum(AField : integer) : TXEROInvoicesStatus;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROInvoicesStatus))) then
+    idx := 0;
+  result := TXEROInvoicesStatus(idx);
+end;
+procedure TXEROInvoice.wStatusEnum(AField : integer; ANewVal : TXEROInvoicesStatus);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROInvoice.rLineAmountTypesEnum(AField : integer) : TXEROLineAmountTypes;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROLineAmountTypes))) then
+    idx := 0;
+  result := TXEROLineAmountTypes(idx);
+end;
+procedure TXEROInvoice.wLineAmountTypesEnum(AField : integer; ANewVal : TXEROLineAmountTypes);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROInvoice.rLineItemsList : TXEROInvoiceLineItemList;
+begin
+  if not assigned(FLineItemsList) then
+    FLineItemsList := TXEROInvoiceLineItemList.Create;
+  result := FLineItemsList;
+end;
+procedure TXEROInvoice.wLineItemsList(ANewVal : TXEROInvoiceLineItemList);
+begin
+  if assigned(ANewVal) then
+    rLineItemsList.Assign(ANewVal)
+  else if Assigned(FLineItemsList) then
+    FLineItemsList.Clear;
+end;
+function TXEROInvoice.rPaymentsList : TXEROPaymentList;
+begin
+  if not assigned(FPaymentsList) then
+    FPaymentsList := TXEROPaymentList.Create;
+  result := FPaymentsList
+end;
+procedure TXEROInvoice.wPaymentsList(ANewVal : TXEROPaymentList);
+begin
+  if assigned(ANewVal) then
+    rPaymentsList.Assign(ANewVal)
+  else if Assigned(FPaymentsList) then
+    FPaymentsList.Clear;
+end;
+function TXEROInvoice.rCreditNotesList : TXEROCreditNoteList;
+begin
+  if not assigned(FCreditNotesList) then
+    FCreditNotesList := TXEROCreditNoteList.Create;
+  result := FCreditNotesList
+end;
+procedure TXEROInvoice.wCreditNotesList(ANewVal : TXEROCreditNoteList);
+begin
+  if assigned(ANewVal) then
+    rCreditNotesList.Assign(ANewVal)
+  else if Assigned(FCreditNotesList) then
+    FCreditNotesList.Clear;
+end;
+function TXEROInvoice.rPrepaymentsList : TXEROPrepaymentList;
+begin
+  if not assigned(FPrepaymentsList) then
+    FPrepaymentsList := TXEROPrepaymentList.Create;
+  result := FPrepaymentsList
+end;
+procedure TXEROInvoice.wPrepaymentsList(ANewVal : TXEROPrepaymentList);
+begin
+  if assigned(ANewVal) then
+    rPrepaymentsList.Assign(ANewVal)
+  else if Assigned(FPrepaymentsList) then
+    FPrepaymentsList.Clear;
+end;
+function TXEROInvoice.rOverpaymentsList : TXEROOverpaymentList;
+begin
+  if not assigned(FOverpaymentsList) then
+    FOverpaymentsList := TXEROOverpaymentList.Create;
+  result := FOverpaymentsList
+end;
+procedure TXEROInvoice.wOverpaymentsList(ANewVal : TXEROOverpaymentList);
+begin
+  if assigned(ANewVal) then
+    rOverpaymentsList.Assign(ANewVal)
+  else if Assigned(FOverpaymentsList) then
+    FOverpaymentsList.Clear;
+end;
+class function TXEROInvoice.PropObjectName : string;
+begin
+  result := 'Invoice';
+end;
+class function TXEROInvoice.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_InvoicesMap.Map) then
+    Raise Exception.CreateFmt('Invalid Invoices Field %d', [AField]);
+  result := G_InvoicesMap.Map[AField];
+end;
+
+class function TXEROInvoice.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_InvoicesMap.Map) then
+    Raise Exception.CreateFmt('Invalid Invoices Field %d', [AField]);
+  result := CInvoicesProperties[AField];
+end;
+
+class function TXEROInvoice.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_InvoicesMap.Count[APropType];
+end;
+
+class function TXEROInvoice.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_InvoicesMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROInvoice.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xifInvoiceID);
+    xsfName:result := ord(xifInvoiceNumber);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+class function TXEROInvoice.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
+begin
+  case AField of
+    ord(xifType): result := ord(XEROInvoicesTypeAsEnum(StgVal));
+    ord(xifStatus): result := ord(XEROInvoicesStatusAsEnum(StgVal));
+    ord(xifLineAmountTypes): result := ord(XEROLineAmountTypesAsEnum(StgVal));
+  else result := inherited PropStringAsEnum(AField, StgVal);
+  end;
+end;
+
+class function TXEROInvoice.PropEnumAsString( AField : Word; IntVal : Integer) : string;
+begin
+  case AField of
+    ord(xifType): result := XEROInvoicesTypeAsString(intVal);
+    ord(xifStatus): result := XEROInvoicesStatusAsString(intVal);
+    ord(xifLineAmountTypes): result := XEROLineAmountTypesAsString(intVal);
+  else result := inherited PropEnumAsString(AField, IntVal);
+  end;
+end;
+
+function TXEROInvoice.GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject;
+begin
+  case field of
+    ord(xifContact):
+      case Access of
+        xfamWrite: result := rContact;
+        xfamClear:
+          begin
+            FreeAndNil(FContact);
+            result := nil;
+          end;
+      else
+        result := FContact;
+      end;
+  else
+    result := inherited GetObject(field, Access);
+  end
+end;
+
+function TXEROInvoice.GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase;
+begin
+  case field of
+    ord(xifLineItems):
+      case access of
+        xfamWrite: result := rLineItemsList;
+        xfamClear:
+          begin
+            FreeAndNil(FLineItemsList);
+            result := nil
+          end;
+      else result := FLineItemsList;
+      end;
+    ord(xifPayments):
+      case access of
+        xfamWrite: result := rPaymentsList;
+        xfamClear:
+          begin
+            FreeAndNil(FPaymentsList);
+            result := nil
+          end;
+      else result := FPaymentsList;
+      end;
+    ord(xifCreditNotes):
+      case access of
+        xfamWrite: result := rCreditNotesList;
+        xfamClear:
+          begin
+            FreeAndNil(FCreditNotesList);
+            result := nil
+          end;
+      else result := FCreditNotesList;
+      end;
+    ord(xifPrepayments):
+      case access of
+        xfamWrite: result := rPrepaymentsList;
+        xfamClear:
+          begin
+            FreeAndNil(FPrepaymentsList);
+            result := nil
+          end;
+      else result := FPrepaymentsList;
+      end;
+    ord(xifOverpayments):
+      case access of
+        xfamWrite: result := rOverpaymentsList;
+        xfamClear:
+          begin
+            FreeAndNil(FOverpaymentsList);
+            result := nil
+          end;
+      else result := FOverpaymentsList;
+      end;
+  else
+    result := inherited GetListObject(field, Access);
+  end
+end;
+
+class function TXEROInvoiceList.PropListName : String;
+begin
+  result := 'Invoices';
+end;
+
+function TXEROContact.rContactStatusEnum(AField : integer) : TXEROContactStatus;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROContactStatus))) then
+    idx := 0;
+  result := TXEROContactStatus(idx);
+end;
+procedure TXEROContact.wContactStatusEnum(AField : integer; ANewVal : TXEROContactStatus);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROContact.rAddressesList : TXEROAddressList;
+begin
+  if not assigned(FAddressesList) then
+    FAddressesList := TXEROAddressList.Create;
+  result := FAddressesList
+end;
+procedure TXEROContact.wAddressesList(ANewVal : TXEROAddressList);
+begin
+  if assigned(ANewVal) then
+    rAddressesList.Assign(ANewVal)
+  else if Assigned(FAddressesList) then
+    FAddressesList.Clear;
+end;
+function TXEROContact.rPhonesList : TXEROPhonesList;
+begin
+  if not assigned(FPhonesList) then
+    FPhonesList := TXEROPhonesList.Create;
+  result := FPhonesList
+end;
+procedure TXEROContact.wPhonesList(ANewVal : TXEROPhonesList);
+begin
+  if assigned(ANewVal) then
+    rPhonesList.Assign(ANewVal)
+  else if Assigned(FPhonesList) then
+    FPhonesList.Clear;
+end;
+function TXEROContact.rContactPersonsList : TXEROContactPersonsList;
+begin
+  if not assigned(FContactPersonsList) then
+    FContactPersonsList := TXEROContactPersonsList.Create;
+  result := FContactPersonsList
+end;
+procedure TXEROContact.wContactPersonsList(ANewVal : TXEROContactPersonsList);
+begin
+  if assigned(ANewVal) then
+    rContactPersonsList.Assign(ANewVal)
+  else if Assigned(FContactPersonsList) then
+    FContactPersonsList.Clear;
+end;
+function TXEROContact.rSalesTrackingCategoriesList : TXEROTrackingCategoryList;
+begin
+  if not assigned(FSalesTrackingCategoriesList) then
+    FSalesTrackingCategoriesList := TXEROTrackingCategoryList.Create;
+  result := FSalesTrackingCategoriesList
+end;
+procedure TXEROContact.wSalesTrackingCategoriesList(ANewVal : TXEROTrackingCategoryList);
+begin
+  if assigned(ANewVal) then
+    rSalesTrackingCategoriesList.Assign(ANewVal)
+  else if Assigned(FSalesTrackingCategoriesList) then
+    FSalesTrackingCategoriesList.Clear;
+end;
+function TXEROContact.rPurchasesTrackingCategoriesList : TXEROTrackingCategoryList;
+begin
+  if not assigned(FPurchasesTrackingCategoriesList) then
+    FPurchasesTrackingCategoriesList := TXEROTrackingCategoryList.Create;
+  result := FPurchasesTrackingCategoriesList
+end;
+procedure TXEROContact.wPurchasesTrackingCategoriesList(ANewVal : TXEROTrackingCategoryList);
+begin
+  if assigned(ANewVal) then
+    rPurchasesTrackingCategoriesList.Assign(ANewVal)
+  else if Assigned(FPurchasesTrackingCategoriesList) then
+    FPurchasesTrackingCategoriesList.Clear;
+end;
+function TXEROContact.rPaymentTermsEnum(AField : integer) : TXEROPaymentTerms;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROPaymentTerms))) then
+    idx := 0;
+  result := TXEROPaymentTerms(idx);
+end;
+procedure TXEROContact.wPaymentTermsEnum(AField : integer; ANewVal : TXEROPaymentTerms);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROContact.rBrandingTheme : TXEROBrandingTheme;
+begin
+  if not assigned(FBrandingTheme) then
+    FBrandingTheme := TXEROBrandingTheme.Create;
+  result := FBrandingTheme
+end;
+procedure TXEROContact.wBrandingTheme(ANewVal : TXEROBrandingTheme);
+begin
+  if assigned(ANewVal) then
+    rBrandingTheme.Assign(ANewVal)
+  else if Assigned(FBrandingTheme) then
+    FBrandingTheme.Clear;
+end;
+class function TXEROContact.PropObjectName : string;
+begin
+  result := 'Contact';
+end;
+class function TXEROContact.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_ContactMap.Map) then
+    Raise Exception.CreateFmt('Invalid Contact Field %d', [AField]);
+  result := G_ContactMap.Map[AField];
+end;
+
+class function TXEROContact.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_ContactMap.Map) then
+    Raise Exception.CreateFmt('Invalid Contact Field %d', [AField]);
+  result := CContactProperties[AField];
+end;
+
+class function TXEROContact.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_ContactMap.Count[APropType];
+end;
+
+class function TXEROContact.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_ContactMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROContact.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xcfContactID );
+    xsfName:result := ord(xcfName);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+class function TXEROContact.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
+begin
+  case AField of
+    ord(xcfContactStatus): result := ord(XEROContactStatusAsEnum(StgVal));
+    ord(xcfPaymentTerms): result := ord(XEROPaymentTermsAsEnum(StgVal));
+  else result := inherited PropStringAsEnum(AField, StgVal);
+  end;
+end;
+
+class function TXEROContact.PropEnumAsString( AField : Word; IntVal : Integer) : string;
+begin
+  case AField of
+    ord(xcfContactStatus): result := XEROContactStatusAsString(intVal);
+    ord(xcfPaymentTerms): result := XEROPaymentTermsAsString(intVal);
+  else result := inherited PropEnumAsString(AField, IntVal);
+  end;
+end;
+
+function TXEROContact.GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject;
+begin
+  case field of
+    ord(xcfBrandingTheme):
+      case Access of
+        xfamWrite: result := rBrandingTheme;
+        xfamClear:
+          begin
+            FreeAndNil(FBrandingTheme);
+            result := nil;
+          end;
+      else
+        result := FBrandingTheme;
+      end;
+  else
+    result := inherited GetObject(field, Access);
+  end
+end;
+
+function TXEROContact.GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase;
+begin
+  case field of
+    ord(xcfAddresses):
+      case access of
+        xfamWrite: result := rAddressesList;
+        xfamClear:
+          begin
+            FreeAndNil(FAddressesList);
+            result := nil
+          end;
+      else result := FAddressesList;
+      end;
+    ord(xcfPhones):
+      case access of
+        xfamWrite: result := rPhonesList;
+        xfamClear:
+          begin
+            FreeAndNil(FPhonesList);
+            result := nil
+          end;
+      else result := FPhonesList;
+      end;
+    ord(xcfContactPersons):
+      case access of
+        xfamWrite: result := rContactPersonsList;
+        xfamClear:
+          begin
+            FreeAndNil(FContactPersonsList);
+            result := nil
+          end;
+      else result := FContactPersonsList;
+      end;
+    ord(xcfSalesTrackingCategories):
+      case access of
+        xfamWrite: result := rSalesTrackingCategoriesList;
+        xfamClear:
+          begin
+            FreeAndNil(FSalesTrackingCategoriesList);
+            result := nil
+          end;
+      else result := FSalesTrackingCategoriesList;
+      end;
+    ord(xcfPurchasesTrackingCategories):
+      case access of
+        xfamWrite: result := rPurchasesTrackingCategoriesList;
+        xfamClear:
+          begin
+            FreeAndNil(FPurchasesTrackingCategoriesList);
+            result := nil
+          end;
+      else result := FPurchasesTrackingCategoriesList;
+      end;
+  else
+    result := inherited GetListObject(field, Access);
+  end
+end;
+
+procedure TXEROContact.BeforeDestruction;
+begin
+  FreeAndNil(FAddressesList);
+  FreeAndNil(FPhonesList);
+  FreeAndNil(FContactPersonsList);
+  FreeAndNil(FSalesTrackingCategoriesList);
+  FreeAndNil(FPurchasesTrackingCategoriesList);
+  FreeAndNil(FBrandingTheme);
+  inherited BeforeDestruction;
+end;
+
+class function TXEROContactList.PropListName : String;
+begin
+  result := 'Contacts';
+end;
+
+class function TXEROContactPerson.PropObjectName : string;
+begin
+  result := 'ContactPerson';
+end;
+class function TXEROContactPerson.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_ContactPersonMap.Map) then
+    Raise Exception.CreateFmt('Invalid Contact Person Field %d', [AField]);
+  result := G_ContactPersonMap.Map[AField];
+end;
+
+class function TXEROContactPerson.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_ContactPersonMap.Map) then
+    Raise Exception.CreateFmt('Invalid Contact Person Field %d', [AField]);
+  result := CContactPersonProperties[AField];
+end;
+
+class function TXEROContactPerson.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_ContactPersonMap.Count[APropType];
+end;
+
+class function TXEROContactPerson.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_ContactPersonMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROContactPerson.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  result := inherited PropSpecialFieldID(field);
+end;
+
+class function TXEROContactPersonsList.PropListName : String;
+begin
+  result := 'ContactPersons';
+end;
+
+// TXEROAddress
+//
+
+
+function TXEROAddress.rAddressTypeEnum(AField : integer) : TXEROAddressType;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROAddressType))) then
+    idx := 0;
+  result := TXEROAddressType(idx);
+end;
+procedure TXEROAddress.wAddressTypeEnum(AField : integer; ANewVal : TXEROAddressType);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+class function TXEROAddress.PropObjectName : string;
+begin
+  result := 'Address';
+end;
+class function TXEROAddress.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_AddressMap.Map) then
+    Raise Exception.CreateFmt('Invalid Address Field %d', [AField]);
+  result := G_AddressMap.Map[AField];
+end;
+
+class function TXEROAddress.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_AddressMap.Map) then
+    Raise Exception.CreateFmt('Invalid Address Field %d', [AField]);
+  result := CAddressProperties[AField];
+end;
+
+class function TXEROAddress.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_AddressMap.Count[APropType];
+end;
+
+class function TXEROAddress.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_AddressMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROAddress.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  result := inherited PropSpecialFieldID(field);
+end;
+
+class function TXEROAddress.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
+begin
+  case AField of
+    ord(xafAddressType): result := ord(XEROAddressTypeAsEnum(StgVal));
+  else result := inherited PropStringAsEnum(AField, StgVal);
+  end;
+end;
+
+class function TXEROAddress.PropEnumAsString( AField : Word; IntVal : Integer) : string;
+begin
+  case AField of
+    ord(xafAddressType): result := XEROAddressTypeAsString(intVal);
+  else result := inherited PropEnumAsString(AField, IntVal);
+  end;
+end;
+
+
+class function TXEROAddressList.PropListName : String;
+begin
+  result :=  'Addresses'; // TODO Check
+end;
+
+
+// TXEROPhone
+//
+class function TXEROPhone.PropObjectName : String;
+begin
+  result := 'Phone';
+end;
+// TXEROPhonesList
+//
+class function TXEROPhonesList.PropListName : String;
+begin
+  result := 'Phones';
+end;
+
+  function TXEROPayment.rStatusEnum(AField : integer) : TXEROPaymentStatus;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROPaymentStatus))) then
+    idx := 0;
+  result := TXEROPaymentStatus(idx);
+end;
+procedure TXEROPayment.wStatusEnum(AField : integer; ANewVal : TXEROPaymentStatus);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+
+function TXEROPayment.rPaymentTypeEnum(AField : integer) : TXEROPaymentType;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROPaymentType))) then
+    idx := 0;
+  result := TXEROPaymentType(idx);
+end;
+procedure TXEROPayment.wPaymentTypeEnum(AField : integer; ANewVal : TXEROPaymentType);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROPayment.rAccount : TXEROAccount;
+begin
+  if not assigned(FAccount) then
+    FAccount := TXEROAccount.Create;
+  result := FAccount
+end;
+procedure TXEROPayment.wAccount(ANewVal : TXEROAccount);
+begin
+  if assigned(ANewVal) then
+    rAccount.Assign(ANewVal)
+  else if Assigned(FAccount) then
+    FAccount.Clear;
+end;
+function TXEROPayment.rInvoice : TXEROInvoice;
+begin
+  if not assigned(FInvoice) then
+    FInvoice := TXEROInvoice.Create;
+  result := FInvoice
+end;
+procedure TXEROPayment.wInvoice(ANewVal : TXEROInvoice);
+begin
+  if assigned(ANewVal) then
+    rInvoice.Assign(ANewVal)
+  else if Assigned(FInvoice) then
+    FInvoice.Clear;
+end;
+function TXEROPayment.rCreditNote : TXEROCreditNote;
+begin
+  if not assigned(FCreditNote) then
+    FCreditNote := TXEROCreditNote.Create;
+  result := FCreditNote
+end;
+procedure TXEROPayment.wCreditNote(ANewVal : TXEROCreditNote);
+begin
+  if assigned(ANewVal) then
+    rCreditNote.Assign(ANewVal)
+  else if Assigned(FCreditNote) then
+    FCreditNote.Clear;
+end;
+function TXEROPayment.rPrepayments : TXEROPrepayment;
+begin
+  if not assigned(FPrepayments) then
+    FPrepayments := TXEROPrepayment.Create;
+  result := FPrepayments
+end;
+procedure TXEROPayment.wPrepayments(ANewVal : TXEROPrepayment);
+begin
+  if assigned(ANewVal) then
+    rPrepayments.Assign(ANewVal)
+  else if Assigned(FPrepayments) then
+    FPrepayments.Clear;
+end;
+function TXEROPayment.rOverpayment : TXEROOverpayment;
+begin
+  if not assigned(FOverpayment) then
+    FOverpayment := TXEROOverpayment.Create;
+  result := FOverpayment
+end;
+procedure TXEROPayment.wOverpayment(ANewVal : TXEROOverpayment);
+begin
+  if assigned(ANewVal) then
+    rOverpayment.Assign(ANewVal)
+  else if Assigned(FOverpayment) then
+    FOverpayment.Clear;
+end;
+class function TXEROPayment.PropObjectName : string;
+begin
+  result := 'Payment';
+end;
+class function TXEROPayment.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_PaymentMap.Map) then
+    Raise Exception.CreateFmt('Invalid Payment Field %d', [AField]);
+  result := G_PaymentMap.Map[AField];
+end;
+
+class function TXEROPayment.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_PaymentMap.Map) then
+    Raise Exception.CreateFmt('Invalid Payment Field %d', [AField]);
+  result := CPaymentProperties[AField];
+end;
+
+class function TXEROPayment.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_PaymentMap.Count[APropType];
+end;
+
+class function TXEROPayment.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_PaymentMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROPayment.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xpfPaymentID);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+class function TXEROPayment.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
+begin
+  case AField of
+    ord(xpfStatus): result := ord(XEROPaymentStatusAsEnum(StgVal));
+    ord(xpfPaymentType): result := ord(XEROPaymentTypeAsEnum(StgVal));
+  else result := inherited PropStringAsEnum(AField, StgVal);
+  end;
+end;
+
+class function TXEROPayment.PropEnumAsString( AField : Word; IntVal : Integer) : string;
+begin
+  case AField of
+    ord(xpfStatus): result := XEROPaymentStatusAsString(intVal);
+    ord(xpfPaymentType): result := XEROPaymentTypeAsString(intVal);
+  else result := inherited PropEnumAsString(AField, IntVal);
+  end;
+end;
+
+function TXEROPayment.GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject;
+begin
+  case field of
+    ord(xpfAccount):
+      case Access of
+        xfamWrite: result := rAccount;
+        xfamClear:
+          begin
+            FreeAndNil(FAccount);
+            result := nil;
+          end;
+      else
+        result := FAccount;
+      end;
+    ord(xpfInvoice):
+      case Access of
+        xfamWrite: result := rInVoice;
+        xfamClear:
+          begin
+            FreeAndNil(FInVoice);
+            result := nil;
+          end;
+      else
+        result := FInVoice;
+      end;
+    ord(xpfCreditNote):
+      case Access of
+        xfamWrite: result := rCreditNote;
+        xfamClear:
+          begin
+            FreeAndNil(FCreditNote);
+            result := nil;
+          end;
+      else
+        result := FCreditNote;
+      end;
+    ord(xpfPrepayments):
+      case Access of
+        xfamWrite: result := rPrepayments;
+        xfamClear:
+          begin
+            FreeAndNil(FPrepayments);
+            result := nil;
+          end;
+      else
+        result := FPrepayments;
+      end;
+    ord(xpfOverpayment):
+      case Access of
+        xfamWrite: result := rOverpayment;
+        xfamClear:
+          begin
+            FreeAndNil(FOverpayment);
+            result := nil;
+          end;
+      else
+        result := FOverpayment;
+      end;
+  else
+    result := inherited GetObject(field, Access);
+  end
+end;
+
+procedure TXEROPayment.BeforeDestruction;
+begin
+  FreeAndNil(FAccount);
+  FreeAndNil(FInvoice);
+  FreeAndNil(FCreditNote);
+  FreeAndNil(FPrepayments);
+  FreeAndNil(FOverpayment);
+  inherited BeforeDestruction;
+end;
+
+
+class function TXEROPaymentList.PropListName : String;
+begin
+  result :=  'Payments';
+end;
+
+
+// TXEROPrepayment
+//
+
+class function TXEROPrepayment.PropObjectName : String;
+begin
+  result := 'Prepayment';
+end;
+// TXEROPrepaymentList
+//
+
+// public definitions
+
+class function TXEROPrepaymentList.PropListName : String;
+begin
+  result := 'Prepayments';
+end;
+// TXEROOverpayment
+//
+
+// public definitions
+
+class function TXEROOverpayment.PropObjectName : String;
+begin
+  result := 'Overpayment';
+end;
+
+// TXEROOverpaymentList
+//
+
+// public definitions
+
+class function TXEROOverpaymentList.PropListName : String;
+begin
+  result := 'Overpayments';
+end;
+
+// TXEROItemPriceDetail
+
+class function TXEROItemPriceDetail.PropObjectName : string;
+begin
+  result := 'ItemPriceDetail';
+end;
+
+class function TXEROItemPriceDetail.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_ItemPriceDetailMap.Map) then
+    Raise Exception.CreateFmt('Invalid Item Price Detail Field %d', [AField]);
+  result := G_ItemPriceDetailMap.Map[AField];
+end;
+
+class function TXEROItemPriceDetail.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_ItemPriceDetailMap.Map) then
+    Raise Exception.CreateFmt('Invalid Item Price Detail Field %d', [AField]);
+  result := CItemPriceDetailProperties[AField];
+end;
+
+class function TXEROItemPriceDetail.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_ItemPriceDetailMap.Count[APropType];
+end;
+
+class function TXEROItemPriceDetail.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_ItemPriceDetailMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROItemPriceDetail.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  result := inherited PropSpecialFieldID(field);
+end;
+
+function TXEROItem.rPurchaseDetails : TXEROPurchaseDetails;
+begin
+  if not assigned(FPurchaseDetails) then
+    FPurchaseDetails := TXEROPurchaseDetails.Create;
+  result := FPurchaseDetails
+end;
+procedure TXEROItem.wPurchaseDetails(ANewVal : TXEROPurchaseDetails);
+begin
+  if assigned(ANewVal) then
+    rPurchaseDetails.Assign(ANewVal)
+  else if Assigned(FPurchaseDetails) then
+    FPurchaseDetails.Clear;
+end;
+function TXEROItem.rSalesDetails : TXEROSalesDetails;
+begin
+  if not assigned(FSalesDetails) then
+    FSalesDetails := TXEROSalesDetails.Create;
+  result := FSalesDetails
+end;
+procedure TXEROItem.wSalesDetails(ANewVal : TXEROSalesDetails);
+begin
+  if assigned(ANewVal) then
+    rSalesDetails.Assign(ANewVal)
+  else if Assigned(FSalesDetails) then
+    FSalesDetails.Clear;
+end;
+class function TXEROItem.PropObjectName : string;
+begin
+  result := 'Item';
+end;
+class function TXEROItem.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_ItemMap.Map) then
+    Raise Exception.CreateFmt('Invalid Item Field %d', [AField]);
+  result := G_ItemMap.Map[AField];
+end;
+
+class function TXEROItem.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_ItemMap.Map) then
+    Raise Exception.CreateFmt('Invalid Item Field %d', [AField]);
+  result := CItemProperties[AField];
+end;
+
+class function TXEROItem.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_ItemMap.Count[APropType];
+end;
+
+class function TXEROItem.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_ItemMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROItem.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xifItemID);
+    xsfName:result := ord(xifCode);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+function TXEROItem.GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject;
+begin
+  case field of
+    ord(xifPurchaseDetails):
+      case Access of
+        xfamWrite: result := rPurchaseDetails;
+        xfamClear:
+          begin
+            FreeAndNil(FPurchaseDetails);
+            result := nil;
+          end;
+      else
+        result := FPurchaseDetails;
+      end;
+    ord(xifSalesDetails):
+      case Access of
+        xfamWrite: result := rSalesDetails;
+        xfamClear:
+          begin
+            FreeAndNil(FSalesDetails);
+            result := nil;
+          end;
+      else
+        result := FSalesDetails;
+      end;
+  else
+    result := inherited GetObject(field, Access);
+  end
+end;
+
+function TXEROItem.CanOutField( Field : integer; mode : TXEROSerialiseOutputMode) : boolean;
+begin
+  result := inherited CanOutField(Field, mode);
+
+  if result and (mode = xsomUpdate) then
+  begin
+    case Field of
+      ord(xifPurchaseDetails): result := IsPurchased;
+      ord(xifSalesDetails):    result := IsSold;
+    end;
+  end;
+end;
+
+procedure TXEROItem.BeforeDestruction;
+begin
+  FreeAndNil(FPurchaseDetails);
+  FreeAndNil(FSalesDetails);
+  inherited BeforeDestruction;
+end;
+
+
+class function TXEROItemList.PropListName : String;
+begin
+  result :=  'Items'; // TODO Check
+end;
+
+// TXEROCreditNote
+//
+
+  function TXEROCreditNote.rTypeEnum(AField : integer) : TXEROInvoicesType;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROInvoicesType))) then
+    idx := 0;
+  result := TXEROInvoicesType(idx);
+end;
+procedure TXEROCreditNote.wTypeEnum(AField : integer; ANewVal : TXEROInvoicesType);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROCreditNote.rContact : TXEROContact;
+begin
+  if not assigned(FContact) then
+    FContact := TXEROContact.Create;
+  result := FContact
+end;
+procedure TXEROCreditNote.wContact(ANewVal : TXEROContact);
+begin
+  if assigned(ANewVal) then
+    rContact.Assign(ANewVal)
+  else if Assigned(FContact) then
+    FContact.Clear;
+end;
+function TXEROCreditNote.rStatusEnum(AField : integer) : TXEROCreditNoteStatus;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROCreditNoteStatus))) then
+    idx := 0;
+  result := TXEROCreditNoteStatus(idx);
+end;
+procedure TXEROCreditNote.wStatusEnum(AField : integer; ANewVal : TXEROCreditNoteStatus);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+function TXEROCreditNote.rLineAmountTypesEnum(AField : integer) : TXEROLineAmountTypes;
+var
+  idx : integer;
+begin
+  idx := rIntegerVal(AField);
+  if (idx < 0) or (idx > ord(high(TXEROLineAmountTypes))) then
+    idx := 0;
+  result := TXEROLineAmountTypes(idx);
+end;
+procedure TXEROCreditNote.wLineAmountTypesEnum(AField : integer; ANewVal : TXEROLineAmountTypes);
+begin
+  wIntegerVal(AField, ord(ANewVal));
+end;
+  function TXEROCreditNote.rLineItemsList : TXEROInvoiceLineItemList;
+begin
+  if not assigned(FLineItemsList) then
+    FLineItemsList := TXEROInvoiceLineItemList.Create;
+  result := FLineItemsList
+end;
+
+procedure TXEROCreditNote.wLineItemsList(ANewVal : TXEROInvoiceLineItemList);
+begin
+  if assigned(ANewVal) then
+    rLineItemsList.Assign(ANewVal)
+  else if Assigned(FLineItemsList) then
+    FLineItemsList.Clear;
+end;
+class function TXEROCreditNote.PropObjectName : string;
+begin
+  result := 'CreditNote';
+end;
+class function TXEROCreditNote.PropTypeIndex( AField : Word) : TXEROPropertyMapEntry;
+begin
+  if AField > high(G_CreditNoteMap.Map) then
+    Raise Exception.CreateFmt('Invalid Credit Note Field %d', [AField]);
+  result := G_CreditNoteMap.Map[AField];
+end;
+
+class function TXEROCreditNote.PropInfo( AField : Word ) : TXEROPropertyEntry;
+begin
+  if AField > high(G_CreditNoteMap.Map) then
+    Raise Exception.CreateFmt('Invalid Credit Note Field %d', [AField]);
+  result := CCreditNoteProperties[AField];
+end;
+
+class function TXEROCreditNote.PropTypeCount( APropType : TXEROPropertyType) : integer;
+begin
+  result := G_CreditNoteMap.Count[APropType];
+end;
+
+class function TXEROCreditNote.PropFieldID( AFieldName : String) : integer;
+begin
+  result := G_CreditNoteMap.NameToFieldID(AFieldName);
+end;
+
+class function TXEROCreditNote.PropSpecialFieldID( Field : TXEROSpecialField) : integer;
+begin
+  case field of
+    xsfUID: result := ord(xcnfCreditNoteID);
+    xsfName:result := ord(xcnfCreditNoteNumber);
+  else      result := inherited PropSpecialFieldID(field);
+  end;
+end;
+class function TXEROCreditNote.PropStringAsEnum( AField : Word; const StgVal : String) : integer;
+begin
+  case AField of
+    ord(xcnfType): result := ord(XEROCreditNoteTypeAsEnum(StgVal));
+    ord(xcnfStatus): result := ord(XEROCreditNoteStatusAsEnum(StgVal));
+    ord(xcnfLineAmountTypes): result := ord(XEROLineAmountTypesAsEnum(StgVal));
+  else result := inherited PropStringAsEnum(AField, StgVal);
+  end;
+end;
+
+class function TXEROCreditNote.PropEnumAsString( AField : Word; IntVal : Integer) : string;
+begin
+  case AField of
+    ord(xcnfType): result := XEROCreditNoteTypeAsString(intVal);
+    ord(xcnfStatus): result := XEROCreditNoteStatusAsString(intVal);
+    ord(xcnfLineAmountTypes): result := XEROLineAmountTypesAsString(intVal);
+  else result := inherited PropEnumAsString(AField, IntVal);
+  end;
+end;
+
+function TXEROCreditNote.GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject;
+begin
+  case field of
+    ord(xcnfContact):
+      case Access of
+        xfamWrite: result := rContact;
+        xfamClear:
+          begin
+            FreeAndNil(FContact);
+            result := nil;
+          end;
+      else
+        result := FContact;
+      end;
+  else
+    result := inherited GetObject(field, Access);
+  end
+end;
+
+function TXEROCreditNote.GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase;
+begin
+  case field of
+    ord(xcnfLineItems):
+      case access of
+        xfamWrite: result := rLineItemsList;
+        xfamClear:
+          begin
+            FreeAndNil(FLineItemsList);
+            result := nil
+          end;
+      else result := FLineItemsList;
+      end;
+  else
+    result := inherited GetListObject(field, Access);
+  end
+end;
+
+procedure TXEROCreditNote.BeforeDestruction;
+begin
+  FreeAndNil(FContact);
+  FreeAndNil(FLineItemsList);
+  inherited BeforeDestruction;
+end;
+
+class function TXEROCreditNoteList.PropListName : String;
+begin
+  result :=  'CreditNotes';
+end;
+
 // TXEROObjectListBase
 
 function TXEROObjectListBase.GetListLoader : TJSONSAXNestableHandler;
@@ -4939,6 +7866,18 @@ initialization
   LoadTypeInfoMap( G_TrackingCategoryOptionMap, @CTrackingCategoryOptionProperties[0], length(CTrackingCategoryOptionProperties) );
   LoadTypeInfoMap( G_TaxComponentMap,     @CTaxComponentProperties[0], length(CTaxComponentProperties));
   LoadTypeInfoMap( G_TaxRateMap,          @CTaxRateProperties[0], length(CTaxRateProperties));
+
+  LoadTypeInfoMap( G_InvoicesMap,         @CInvoicesProperties[0], length(CInvoicesProperties));
+  LoadTypeInfoMap( G_InvoiceLineItemMap,  @CInvoiceLineItemProperties[0], length(CInvoiceLineItemProperties));
+  LoadTypeInfoMap( G_BrandingThemeMap,    @CBrandingThemeProperties[0], length(CBrandingThemeProperties));
+
+  LoadTypeInfoMap( G_ContactMap,          @CContactProperties[0], length(CContactProperties));
+  LoadTypeInfoMap( G_ContactPersonMap,    @CContactPersonProperties[0], length(CContactPersonProperties));
+  LoadTypeInfoMap( G_ItemMap,             @CItemProperties[0], length(CItemProperties));
+  LoadTypeInfoMap( G_ItemPriceDetailMap,  @CItemPriceDetailProperties[0], length(CItemPriceDetailProperties));
+  LoadTypeInfoMap( G_PaymentMap,          @CPaymentProperties[0], length(CPaymentProperties));
+  LoadTypeInfoMap( G_CreditNoteMap,       @CCreditNoteProperties[0], length(CCreditNoteProperties));
+  LoadTypeInfoMap( G_AddressMap,          @CAddressProperties[0], length(CAddressProperties));
 finalization
   G_Comparer := nil;
 end.
