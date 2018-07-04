@@ -2312,6 +2312,7 @@ begin
                 xptString:   display := not IsEmptyString(rStringVal(idx));
                 xptEnum:     display := not IsEmptyString(rEnumStgVal(idx));
                 xptDateTime: display := rDateTimeVal(idx) <> 0;
+                xptCurrency: display := rCurrencyVal(idx) <> 0;
               end;
             end;
           end;
