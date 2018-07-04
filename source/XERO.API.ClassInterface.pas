@@ -1158,6 +1158,8 @@ type
 
     Procedure BeforeDestruction; override;
 
+    procedure StartMyElement; override;
+
     //: Handle Creating  new item to add to the list.
     procedure StartItem; override;
     //: Add a new item to the list.
@@ -2589,6 +2591,15 @@ begin
     FCur := FList.CreateListObject;
     FOwnsCur := true;
   end;
+end;
+
+procedure TXEROLoaderGenericBase.StartMyElement;
+begin
+  if assigned(FCur) then
+    FCur.Clear;
+
+  inherited;
+
 end;
 
 // Add a new item to the list.
