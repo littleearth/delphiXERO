@@ -1055,7 +1055,8 @@ type
   TXEROConnect = class(TXEROAPIBase)
   protected
     // Build the URI required for an action.
-    function BuildURI( const APath, ADoc, AParams  : String; AActionType : THttpActionType = hatGet) : String; overload;
+    function BuildURI( const APath, ADoc : String; const AParams : TRestParams; AActionType : THttpActionType = hatGet) : String; overload;
+    function BuildURI( const APath, ADoc : String;const AParams : TRestParams; const AQuery : String; AOrder : TXEROOrder;  AActionType : THttpActionType; Page : Integer) : String; overload;
     function BuildURI( const APath, ADoc : String;const AQuery : String; AOrder : TXEROOrder;  AActionType : THttpActionType; Page : Integer) : String; overload;
 
     // Load a list of objects returned.
@@ -2727,22 +2728,26 @@ begin
 end;
 
 function TXEROConnect.BuildURI( const APath, ADoc : String;const AQuery : String; AOrder : TXEROOrder;  AActionType : THttpActionType; Page : Integer) : String;
-var
-  Params : String;
 begin
-  params := '';
+  result := BuildURI(APath, ADoc, TRestParams.None, AQuery, AOrder, AActionType, Page);
+end;
+
+function TXEROConnect.BuildURI( const APath, ADoc : String;const AParams : TRestParams; const AQuery : String; AOrder : TXEROOrder;  AActionType : THttpActionType; Page : Integer) : String;
+var
+  Params : TRestParams;
+begin
+  params := AParams;
   if not IsEmptyString(AQuery) then
-    AddHTMLParam(Params, 'where',AQuery);
+    Params.Add('where',AQuery);
   if not AOrder.IsEmpty then
-    AddHTMLParam(params, 'order', AOrder.AsString);
+    Params.Add('order', AOrder.AsString);
   if Page >= 0 then
-    AddHTMLParam(params, 'page', IntToStr(page));
+    params.Add('page', IntToStr(page));
   result := BuildURI(APath, ADoc, Params, AActionType);
 end;
 
-function TXEROConnect.BuildURI( const APath, ADoc, AParams  : String; AActionType : THttpActionType = hatGet) : String;
+function TXEROConnect.BuildURI( const APath, ADoc : String; const AParams : TRestParams; AActionType : THttpActionType = hatGet) : String;
 var
-  params,
   path : String;
   uri : TIDURI;
 begin
@@ -2757,8 +2762,7 @@ begin
 
     uri.Path := TIDURI.PathEncode(IncludeTrailingURIDelimeter(path));
     uri.Document := TIDURI.PathEncode(ADoc);
-    params := AParams;
-    uri.Params := params;
+    uri.Params := AParams.AsString;
     result := uri.URI;
   finally
     uri.Free;
@@ -3173,7 +3177,7 @@ begin
         result := false
       else
       begin
-        result := GetLoadSingleResult(BuildURI('accounts', AReferenceID, '', hatGet), nil, 'Accounts', loader);
+        result := GetLoadSingleResult(BuildURI('accounts', AReferenceID, TRestParams.None, hatGet), nil, 'Accounts', loader);
       end;
     end;
     1:
@@ -3193,7 +3197,7 @@ begin
   loader := TXEROOrganisationLoader.Create('Organisation', properties);
   try
     properties.Clear;
-    result := GetLoadSingleResult(BuildURI('', 'Organisations', '', hatGet), nil, 'Organisations', loader);
+    result := GetLoadSingleResult(BuildURI('', 'Organisations', TRestParams.None, hatGet), nil, 'Organisations', loader);
     if result then
     begin
       properties.ResetModified;
@@ -3210,7 +3214,7 @@ var
 begin
   loader := accountList.GetListLoader;
   try
-    result := GetLoadList(BuildURI('','accounts', ''), nil, 'Accounts', loader);
+    result := GetLoadList(BuildURI('','accounts', TRestParams.None), nil, 'Accounts', loader);
     if result then
     begin
       accountList.ResetModified;
@@ -3233,7 +3237,7 @@ begin
     else
     begin
       account.Clear;
-      result := GetLoadSingleResult(BuildURI('accounts', AIdent, '', hatGet), nil, 'Accounts', loader);
+      result := GetLoadSingleResult(BuildURI('accounts', AIdent, TRestParams.None, hatGet), nil, 'Accounts', loader);
       if result then
       begin
         account.ResetModified;
@@ -3252,7 +3256,7 @@ var
 begin
   loader := TXEROAccountLoader.Create('Account', account);
   try
-    result := Store(BuildURI('', 'accounts','', hatSend),
+    result := Store(BuildURI('', 'accounts',TRestParams.None, hatSend),
       'Accounts', 'Account', account, xsomUpdate, loader);
   finally
     loader.Free;
@@ -3265,7 +3269,7 @@ begin
   if accountList.Count = 0 then
     result := true
   else
-    result := StoreList(BuildURI('','accounts','',hatSend),
+    result := StoreList(BuildURI('','accounts',TRestParams.None,hatSend),
       'Accounts', 'Account', accountList,ResponseList, xsomUpdate);
 end;
 
@@ -3307,7 +3311,7 @@ begin
     else
     begin
       manualJournal.Clear;
-      result := GetLoadSingleResult(BuildURI('manualjournals',AUID, '', hatGet), nil, 'ManualJournals', loader);
+      result := GetLoadSingleResult(BuildURI('manualjournals',AUID, TRestParams.None, hatGet), nil, 'ManualJournals', loader);
       if result then
       begin
         manualJournal.ResetModified;
@@ -3331,7 +3335,7 @@ var
 begin
   loader := TXEROManualJournalLoader.Create('ManualJournal', manualJournal);
   try
-    result := Store(BuildURI('', 'manualjournals','', hatSend),
+    result := Store(BuildURI('', 'manualjournals',TRestParams.None, hatSend),
       'ManualJournals', 'ManualJournal', manualJournal, xsomUpdate, loader);
   finally
     loader.Free;
@@ -3344,7 +3348,7 @@ begin
   if ManualJournalList.Count = 0 then
     result := true
   else
-    result := StoreList(BuildURI('','manualjournals','',hatSend),
+    result := StoreList(BuildURI('','manualjournals',TRestParams.None,hatSend),
       'ManualJournals', 'ManualJournal', ManualJournalList,ResponseJournals, xsomUpdate);
 end;
 
@@ -3385,7 +3389,7 @@ begin
     else
     begin
       categoryItem.Clear;
-      result := GetLoadSingleResult(BuildURI('trackingcategories',AUID, '', hatGet), nil, 'TrackingCategories', loader);
+      result := GetLoadSingleResult(BuildURI('trackingcategories',AUID, TRestParams.None, hatGet), nil, 'TrackingCategories', loader);
       if result then
       begin
         categoryItem.ResetModified;
@@ -3404,7 +3408,7 @@ var
 begin
   loader := TXEROTrackingCategoryLoader.Create('TrackingCategory', categoryItem);
   try
-    result := Store(BuildURI('', 'trackingcategories','', hatSend),
+    result := Store(BuildURI('', 'trackingcategories',TRestParams.None, hatSend),
     'TrackingCategories', 'TrackingCategory', categoryItem, xsomUpdate, loader);
   finally
     loader.Free;
@@ -3417,7 +3421,7 @@ begin
   if categoryList.Count = 0 then
     result := true
   else
-    result := StoreList(BuildURI('','trackingcategories','',hatSend),
+    result := StoreList(BuildURI('','trackingcategories',TRestParams.None,hatSend),
       'TrackingCategories', 'TrackingCategory', categoryList, responselist, xsomUpdate);
 end;
 
@@ -3454,7 +3458,7 @@ begin
     else
     begin
       taxRate.Clear;
-      result := GetLoadSingleResult(BuildURI('taxrates',ATaxType, '', hatGet), nil, 'TaxRates', loader);
+      result := GetLoadSingleResult(BuildURI('taxrates',ATaxType, TRestParams.None, hatGet), nil, 'TaxRates', loader);
       if result then
       begin
         taxRate.ResetModified;
@@ -3472,7 +3476,7 @@ var
 begin
   loader := TXEROLoaderGenericBase.Create('TaxRate', taxRate);
   try
-    result := Store(BuildURI('', 'taxrates','', hatSend),
+    result := Store(BuildURI('', 'taxrates',TRestParams.None, hatSend),
     'TaxRates', 'TaxRate', taxRate, xsomUpdate, loader);
   finally
     loader.Free;

@@ -21,6 +21,33 @@ type
     procedure DecodeAndSet( const AValue : String);
   end;
 
+  // Key/Vale Parameter entry
+  TRestParamEntry = record
+    K,V : String;
+    Constructor Param(AK, AV : String);
+    class operator Add(const LHS, RHS : TRestParamEntry) : TArray<TRestParamEntry>; inline;
+    class operator Add( const LHS : TArray<TRestParamEntry>; const RHS : TRestParamEntry) : TArray<TRestParamEntry>; inline;
+  end;
+
+  // List of parameters for REST calls.
+  TRestParams = record
+    Values : TArray<TRestParamEntry>;
+    constructor Param(const AK, AV : String);
+
+    class Function None : TRestParams; static;
+
+    function Add(Const AK, AV : String) : TRestParams; inline;
+    procedure Clear; inline;
+
+    class operator Implicit(const AParamEntry : TRestParamEntry) : TRestParams; inline;
+    class operator Implicit(const AParamEntry : TArray<TRestParamEntry>) : TRestParams; inline;
+    class operator Add(const LHS : TRestParams; RHS : TRestParamEntry) : TRestParams; inline;
+    { Build Encoded Param string with lowercase Keys so that checksum doesn't
+      fail.
+    }
+    function AsString : String;
+  end;
+
 // Output date/time in standard XML format
 function XMLDateTimeToStr( ADate : TDateTime; Parts : TXMLDateParts = [xdpDate, xdpTime]) : String;
 // Parse strict XML date/time string to TDateTime
@@ -398,5 +425,114 @@ begin
     result := result + '/';
 end;
 
+// TParamEntry
+//
+
+Constructor TRestParamEntry.Param(AK, AV : String);
+begin
+  K := AK;
+  V := AV;
+end;
+
+class operator TRestParamEntry.Add(const LHS, RHS : TRestParamEntry) : TArray<TRestParamEntry>;
+begin
+  setLength(result, 2);
+  result[0] := LHS;
+  result[1] := RHS;
+end;
+
+class operator TRestParamEntry.Add( const LHS : TArray<TRestParamEntry>; const RHS : TRestParamEntry) : TArray<TRestParamEntry>;
+begin
+  result := LHS;
+  SetLength(result, Length(Result)+1);
+  result[high(result)] := RHS;
+end;
+
+// TRestParams
+//
+class Function TRestParams.None : TRestParams;
+begin
+  result.Values := nil;
+end;
+
+constructor TRestParams.Param(const AK, AV : String);
+begin
+  SetLength(Values, 1);
+  Values[0].Param(AK, AV);
+end;
+
+procedure TRestParams.Clear;
+begin
+  Values := nil;
+end;
+
+function TRestParams.Add(Const AK, AV : String) : TRestParams;
+var
+  idx : Integer;
+  found : boolean;
+begin
+  found := false;
+  for  idx := 0 to high(values) do
+  begin
+    if CompareText(values[idx].K, AK) = 0 then
+    begin
+      values[idx].V := AV;
+      found := true;
+      break;
+    end;
+  end;
+  if not found then
+  begin
+    SetLength(Values, length(Values)+1);
+    Values[high(Values)].Param(AK, AV);
+  end;
+  result := self;
+end;
+
+class operator TRestParams.Implicit(const AParamEntry : TRestParamEntry) : TRestParams;
+begin
+  SetLength(result.Values,1);
+  Result.Values[0] := AParamEntry;
+end;
+
+class operator TRestParams.Implicit(const AParamEntry : TArray<TRestParamEntry>) : TRestParams;
+begin
+  result.Values := AParamEntry;
+end;
+
+class operator TRestParams.Add(const LHS : TRestParams; RHS : TRestParamEntry) : TRestParams;
+begin
+  result := LHS;
+  // Detach.
+  SetLength(result.Values, length(result.Values));
+  result.Add(RHS.K, RHS.V);
+end;
+
+function TRestParams.AsString : String;
+var
+  idx : integer;
+  bld : TStringBuilder;
+begin
+  if length(Values) = 0 then
+    result := ''
+  else
+  begin
+    bld := TStringBuilder.Create;
+    try
+      for idx := 0 to High(Values) do
+      begin
+        if idx > 0 then
+          bld.Append('&');
+        // Without the ToLower, we end up with 402 Authentication Failed.
+        bld.Append(Values[idx].K.ToLower);
+        bld.Append('=');
+        bld.Append(EncodeParamData(Values[idx].V));
+      end;
+      result := bld.ToString;
+    finally
+      bld.Free;
+    end;
+  end;
+end;
 
 end.
