@@ -207,10 +207,7 @@ type
     //: Output fields to a generic writer.
     function OutFields( writer : TXEROObjectWriter; mode : TXEROSerialiseOutputMode) : boolean;
 
-    //: Output contained object fields
-    function OutObjectField( Field : Integer; Writer : TXEROObjectWriter; mode: TXEROSerialiseOutputMode) :boolean; virtual;
-
-    function GetObject(field : Integer) :TXEROObject; virtual;
+    function GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject; virtual;
 
     //: Get at list field
     function GetListObject(Field : Integer; Access : TXEROFieldAccessMode) : TXEROObjectListBase; virtual;
@@ -1831,7 +1828,7 @@ end;
 procedure TXEROObject.Assign( ASource : TPersistent);
 var
   srcLines, dstLines : TXEROObjectListBase;
-  obj, srcObj : TXEROObject;
+  obj, srcObj, dstObj : TXEROObject;
   idx : integer;
 begin
   if ASource is ClassType then
@@ -1848,8 +1845,15 @@ begin
         xptBoolean:  wBooleanVal(idx, obj.rbooleanVal(idx));
         xptObject:
           begin
-            srcObj := obj.GetObject(idx);
-            GetObject(idx).Assign(srcObj);
+            srcObj := obj.GetObject(idx, xfamRead);
+            if assigned(srcObj) then
+              GetObject(idx, xfamWrite).Assign(srcObj)
+            else
+            begin
+              dstObj := GetObject(idx, xfamClear);
+              if assigned(dstObj) then
+                dstObj.Clear;
+            end;
           end;
         xptList:
           begin
@@ -2254,13 +2258,7 @@ begin
   result := true;
 end;
 
-// Output contained object fields
-function TXEROObject.OutObjectField( Field : Integer; Writer : TXEROObjectWriter; mode: TXEROSerialiseOutputMode) :boolean;
-begin
-  result := true;
-end;
-
-function TXEROObject.GetObject(field : Integer) :TXEROObject;
+function TXEROObject.GetObject(field : Integer; Access : TXEROFieldAccessMode) :TXEROObject;
 begin
   result := nil;
 end;
@@ -2339,19 +2337,19 @@ begin
             xptBoolean:  writer.WriteProperty(PropName, rBooleanVal(idx));
             xptObject:
               begin
-                obj := GetObject(idx);
+                obj := GetObject(idx, xfamRead);
                 if assigned(obj) then
                   obj.OutObject(writer, PropName, xpmNamed, mode)
-                else
-                  OutObjectField(idx, Writer, mode);
+                else if (mode = xsomDisplay) or not (xpuSkipBlank in PropUsage) then
+                  writer.WritePropertyNull(propName);
               end;
             xptList:
               begin
                 list := GetListObject(idx, xfamRead);
                 if assigned(list) then
                   list.OutObject(writer, PropName, xpmNamed, mode)
-                else
-                  OutObjectField(idx, Writer, mode);
+                else if (mode = xsomDisplay) or not (xpuSkipBlank in PropUsage) then
+                  writer.WritePropertyNull(propName);
               end;
           end;
         end;
@@ -2412,7 +2410,7 @@ begin
             end;
           xptObject:
             begin
-              obj := GetObject(idx);
+              obj := GetObject(idx, xfamClear);
               if Assigned(obj) then
                 obj.Clear;
             end;
