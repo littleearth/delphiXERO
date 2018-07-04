@@ -1873,6 +1873,7 @@ begin
       end;
     end;
     FModified := obj.FModified;
+    wIsNew(obj.FIsNew);
   end
   else
     inherited Assign(ASource);
@@ -3422,11 +3423,8 @@ begin
     result := GetLoadList(BuildURI('','taxrates', AQuery, AOrder, hatGet, APageNo), nil, 'TaxRates', loader);
     if result then
     begin
-      if result then
-      begin
-        taxRateList.ResetModified;
-        taxRateList.SetIsNew(false);
-      end;
+      taxRateList.ResetModified;
+      taxRateList.SetIsNew(false);
     end;
   finally
     loader.Free;
@@ -3481,6 +3479,11 @@ begin
           begin
             result := AXeroObject.Serialise( writer, xotXML, mode);
           end, SingleResultLoader);
+    if result then
+    begin
+      AXeroObject.IsNew := false;
+      AXeroObject.ResetModified;
+    end;
   finally
     SingleResultLoader.Free;
   end;
