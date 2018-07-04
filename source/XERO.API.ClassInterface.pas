@@ -1360,7 +1360,7 @@ var
     );
   CXEROAccountClassType : array [TXEROAccountClass] of string =
   ( '', 'ASSET', 'EQUITY', 'EXPENSE', 'LIABILITY', 'REVENUE');
-  CXEROAccountTypeType : array [TXEROAccountType] of string = (
+  CXEROAccountType : array [TXEROAccountType] of string = (
     '',
     'BANK',
     'CURRENT',
@@ -1461,7 +1461,7 @@ begin
   result := low(TXEROAccountType);
   for idx := low(idx) to high(idx) do
   begin
-    if CompareText(stg, CXEROAccountTypeType[idx]) = 0 then
+    if CompareText(stg, CXEROAccountType[idx]) = 0 then
     begin
       result := idx;
       break;
@@ -1472,7 +1472,7 @@ function XEROAccountTypeAsString( enumVal : Integer) : String;
 begin
   if (enumVal < 0) or (enumVal > ord(high(TXEROAccountType))) then
     enumVal := ord(low(TXEROAccountType));
-  result := CXEROAccountTypeType[TXEROAccountType(enumVal)];
+  result := CXEROAccountType[TXEROAccountType(enumVal)];
 end;
 
 function XEROAccountStatusAsEnum( stg : String) : TXEROAccountStatus;
