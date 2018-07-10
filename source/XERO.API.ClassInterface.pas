@@ -3169,7 +3169,7 @@ begin
   if AField <= 63 then
   begin
     if not rModified(AField) then
-      FModified := FModified and (1 shl AField);
+      FModified := FModified or (1 shl AField);
   end;
 end;
 
