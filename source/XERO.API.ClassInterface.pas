@@ -5058,8 +5058,11 @@ begin
           begin
             // 404 and 401 don't have any other error information. Assume that is the
             // case for the rest.
-            if (ResponseCode div 100) = 4 then
-              raise XEROException.Create(ResponseCode, ErrorDetail);
+            case ResponseCode of
+              400: ; // Has XML elements
+              401, 404:
+                raise XEROException.Create(ResponseCode, ErrorDetail);
+            end;
 
             respLoad := TXEROErrorResponseLoader.Create('', @errresp, AResponseListHandler, false);
             parser := TJSONEventReader.Create(respLoad);
