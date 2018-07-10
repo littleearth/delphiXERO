@@ -27,7 +27,11 @@ type
 
   {: Object Serialisation output mode.
   }
-  TXEROSerialiseOutputMode = (xsomUpdate, xsomDisplay);
+  TXEROSerialiseOutputMode = (
+    xsomUpdate, // For output to XERO
+    xsomDisplay, // For display only (dump all)
+    xsomReference // Use for xsomUpdate and objects with xpuReference
+    );
 
   //: Base for parsing a XERO JSON Object.
   TXEROObjectLoaderBase = class(TJSONSAXNestableHandler)
@@ -67,10 +71,11 @@ type
   TXEROPropertyUsage = (
     xpuReqNew,   // Required for NEW objects
     xpuReqUpdate,// Required for UPDATING objects
-    xpuNew,      // Allowed for NEW objects
-    xpuUpdate,   // Allowed for UPDATING objects
+    xpuNew,      // Allowed for NEW objects (skip if not modified)
+    xpuUpdate,   // Allowed for UPDATING objects (skip if not modified)
     xpuConditional, // Conditional (Calls CanOutField)
-    xpuSkipBlank // Skip output if the property is blank.
+    xpuSkipBlank, // Skip output if the property is blank (regardless of usage).
+    xpuReference // Output just object reference unless new/modified
     );
   TXEROPropertyUsageSet = set of TXEROPropertyUsage;
 
@@ -221,6 +226,7 @@ type
 
     function DoCheckValidation : TXEROValidationErrors; virtual;
     procedure wIsNew(NewVal: Boolean); virtual;
+    function rIsModified: boolean;
   public
     procedure AfterConstruction; override;
 
@@ -255,6 +261,7 @@ type
 
     // This object IsNew
     property IsNew : Boolean read FIsNew write wIsNew;
+    property IsModified : boolean read rIsModified;
   end;
 
   {: A Base class representing a list of XERO Objects.
@@ -2064,7 +2071,7 @@ CTaxRateProperties  : array[ord(low(TXEROTaxRateField))..ord(high(TXEROTaxRateFi
 
 CInvoicesProperties : array[ord(low(TXEROInvoicesField))..ord(high(TXEROInvoicesField))] of TXEROPropertyEntry = (
 ( PropType: xptEnum;     PropName: 'Type';                PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See Invoice Types
-( PropType: xptObject;   PropName: 'Contact';             PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate]; ), // See Contacts
+( PropType: xptObject;   PropName: 'Contact';             PropDefault: ''; PropUsage : [xpuReqNew, xpuReqUpdate, xpuReference]; ), // See Contacts
 ( PropType: xptDateTime; PropName: 'Date';                PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Date invoice was issued - YYYY-MM-DD
 ( PropType: xptDateTime; PropName: 'DueDate';             PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // Date invoice is due - YYYY-MM-DD
 ( PropType: xptEnum;     PropName: 'Status';              PropDefault: ''; PropUsage : [xpuNew, xpuUpdate]; ), // See Invoice Status Codes
@@ -2215,7 +2222,7 @@ CPaymentProperties :  array[ord(low(TXEROPaymentField))..ord(high(TXEROPaymentFi
 CCreditNoteProperties :  array[ord(low(TXEROCreditNoteField))..ord(high(TXEROCreditNoteField))] of TXEROPropertyEntry = (
 ( PropType: xptString;     PropName: 'CreditNoteID';    PropDefault: ''; PropUsage: [xpuReqUpdate]; ), // Xero generated unique identifier
 ( PropType: xptEnum;       PropName: 'Type';            PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Credit Note Types
-( PropType: xptObject;     PropName: 'Contact';         PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Contacts
+( PropType: xptObject;     PropName: 'Contact';         PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate, xpuReference ]; ), // See Contacts
 ( PropType: xptDateTime;   PropName: 'Date';            PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // The date the credit note is issued YYYY-MM-DD. If the Date element is not specified then it will default to the current date based on the timezone setting of the organisation
 ( PropType: xptEnum;       PropName: 'Status';          PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Credit Note Status Codes
 ( PropType: xptEnum;       PropName: 'LineAmountTypes'; PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ), // See Invoice Line Amount Types
@@ -2240,14 +2247,14 @@ CCreditNoteProperties :  array[ord(low(TXEROCreditNoteField))..ord(high(TXEROCre
 CAddressProperties :  array[ord(low(TXEROAddressField))..ord(high(TXEROAddressField))] of TXEROPropertyEntry = (
 ( PropType: xptEnum;       PropName: 'AddressType';     PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ),
 ( PropType: xptString;     PropName: 'AddressLine1';    PropDefault: ''; PropUsage: [xpuReqNew, xpuReqUpdate]; ),
-( PropType: xptString;     PropName: 'AddressLine2';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ),
-( PropType: xptString;     PropName: 'AddressLine3';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ),
-( PropType: xptString;     PropName: 'AddressLine4';    PropDefault: ''; PropUsage: [xpuNew, xpuUpdate, xpuSkipBlank]; ),
-( PropType: xptString;     PropName: 'City';            PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
-( PropType: xptString;     PropName: 'Region';          PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
-( PropType: xptString;     PropName: 'PostalCode';      PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
-( PropType: xptString;     PropName: 'Country';         PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; ),
-( PropType: xptString;     PropName: 'AttentionTo';     PropDefault: ''; PropUsage: [xpuNew, xpuUpdate]; )
+( PropType: xptString;     PropName: 'AddressLine2';    PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'AddressLine3';    PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'AddressLine4';    PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'City';            PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'Region';          PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'PostalCode';      PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'Country';         PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; ),
+( PropType: xptString;     PropName: 'AttentionTo';     PropDefault: ''; PropUsage: [xpuNew, xpuReqUpdate, xpuSkipBlank]; )
 );
 
 type
@@ -3175,7 +3182,15 @@ end;
 
 function TXEROObject.rModified(AField : Integer) : boolean;
 begin
-  result := ((FModified shr AField) and 1) = 1;
+  if AField > 63 then
+    result := true
+  else
+    result := ((FModified shr AField) and 1) = 1;
+end;
+
+function TXEROObject.rIsModified: boolean;
+begin
+  result := FModified <> 0;
 end;
 
 procedure TXEROObject.wStringVal( AField : Integer; newVal : String);
@@ -3481,13 +3496,27 @@ var
   obj : TXEROObject;
   list : TXEROObjectListBase;
   dtVal : TDateTime;
+  refField : integer;
+  objMode : TXEROSerialiseOutputMode;
 begin
+  refField := -1;
+  if mode = xsomReference then
+  begin
+    refField := PropSpecialFieldID(xsfUID);
+    if refField < 0 then
+    begin
+      refField := PropSpecialFieldID(xsfName);
+      if refField < 0 then
+        mode := xsomUpdate;
+    end;
+  end;
   result := true;
   for idx := 0 to PropTypeCount(xptUnknown)-1 do
   begin
     with PropInfo(idx) do
     begin
       case mode of
+        xsomReference,
         xsomUpdate:
           begin
             if IsNew then
@@ -3496,6 +3525,10 @@ begin
                 display := true
               else
                 display := (xpuNew in PropUsage);
+            end
+            else if (mode = xsomReference) and not IsModified then
+            begin
+              display := (idx = refField);
             end
             else
             begin
@@ -3541,17 +3574,32 @@ begin
             xptBoolean:  writer.WriteProperty(PropName, rBooleanVal(idx));
             xptObject:
               begin
+                case mode of
+                  xsomReference,
+                  xsomUpdate:
+                    if (xpuReference in PropUsage) then
+                      objMode := xsomReference
+                    else
+                      objMode := xsomDisplay;
+                else
+                  objMode := mode ;
+                end;
+
                 obj := GetObject(idx, xfamRead);
                 if assigned(obj) then
-                  obj.OutObject(writer, PropName, xpmNamed, mode)
+                  obj.OutObject(writer, PropName, xpmNamed, objMode)
                 else if (mode = xsomDisplay) or not (xpuSkipBlank in PropUsage) then
                   writer.WritePropertyNull(propName);
               end;
             xptList:
               begin
+                if mode = xsomReference then
+                  objMode := xsomUpdate
+                else
+                  objMode := mode;
                 list := GetListObject(idx, xfamRead);
                 if assigned(list) then
-                  list.OutObject(writer, PropName, xpmNamed, mode)
+                  list.OutObject(writer, PropName, xpmNamed, objMode)
                 else if (mode = xsomDisplay) or not (xpuSkipBlank in PropUsage) then
                   writer.WritePropertyNull(propName);
               end;
