@@ -265,6 +265,7 @@ public
   property AsString : String read GetString;
 end;
 
+function IsGUID( const strVal : String) :boolean;
 
 implementation
 
