@@ -1,3 +1,6 @@
+// JCL_DEBUG_EXPERT_GENERATEJDBG OFF
+// JCL_DEBUG_EXPERT_INSERTJDBG OFF
+// JCL_DEBUG_EXPERT_DELETEMAPFILE OFF
 package XEROAPID101;
 
 {$R *.res}
@@ -36,7 +39,8 @@ requires
   dsnap,
   xmlrtl,
   inet,
-  soaprtl;
+  soaprtl,
+  RESTComponents;
 
 contains
   XERO.API in '..\source\XERO.API.pas',
@@ -56,6 +60,17 @@ contains
   XERO.API.Response.Text in '..\source\XERO.API.Response.Text.pas',
   XERO.API.Invoices in '..\source\XERO.API.Invoices.pas',
   XERO.ISO8601 in '..\source\XERO.ISO8601.pas',
-  XERO.XMLParser in '..\source\XERO.XMLParser.pas';
+  XERO.XMLParser in '..\source\XERO.XMLParser.pas',
+  XERO.MiscUtil in '..\source\XERO.MiscUtil.pas',
+  XERO.VarUtil in '..\source\XERO.VarUtil.pas',
+  XERO.Log in '..\source\XERO.Log.pas',
+  XERO.Invoice.Model in '..\source\models\XERO.Invoice.Model.pas',
+  XERO.Contact.Model in '..\source\models\XERO.Contact.Model.pas',
+  XERO.Model in '..\source\models\XERO.Model.pas',
+  XERO.Address.Model in '..\source\models\XERO.Address.Model.pas',
+  XERO.Phone.Model in '..\source\models\XERO.Phone.Model.pas',
+  XERO.CreditNote.Model in '..\source\models\XERO.CreditNote.Model.pas',
+  XERO.PurchaseOrder.Model in '..\source\models\XERO.PurchaseOrder.Model.pas',
+  XERO.Item.Model in '..\source\models\XERO.Item.Model.pas';
 
 end.

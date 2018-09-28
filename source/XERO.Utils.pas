@@ -8,6 +8,8 @@ uses
 
 function IsEmptyString(AValue: string): boolean;
 function StripCRLLF(AValue: string): string;
+function StripNonNumeric(const AValue: string; AAllowDecimal: boolean = False;
+  AAllowNegative: boolean = False): string;
 
 function URLEncode(const AStr: String): String;
 function URLDecode(const AStr: string): string;
@@ -15,12 +17,18 @@ function GetURLSeperator(AURL: string): string;
 function EncodeHTML(AValue: String): string;
 function DecodeHTML(AValue: String): string;
 
+function GetUserAppDataDir: string;
+function GetShellFolderPath(AFolder: integer): string;
+function ExecuteFile(const Operation, FileName, Params, DefaultDir: string;
+  ShowCmd: word): integer;
+function CheckDirectoryExists(ADirectory: string; ACreate: boolean): boolean;
+
 implementation
 
 uses
   StrUtils, System.IOUtils,
-  Winapi.ShellAPI,
-  IdURI;
+  Winapi.ShellAPI, Vcl.Forms,
+  IdURI, Winapi.ShlObj;
 
 function StripCRLLF(AValue: string): string;
 begin
@@ -38,15 +46,16 @@ end;
 
 function IsEmptyString(AValue: string): boolean;
 var
-  ch : Char;
+  ch: Char;
 begin
-  result := true;
-  for ch in Avalue do
+  Result := true;
+  for ch in AValue do
   begin
     case ch of
-    ' ': ;
+      ' ':
+        ;
     else
-      result := false;
+      Result := False;
       break;
     end;
   end;
@@ -59,8 +68,8 @@ begin
   Result := '';
   for i := 1 to Length(AStr) do
     case AStr[i] of
-    'A' .. 'Z', 'a' .. 'z', '0', '1' .. '9', '-', '_', '~', '.':
-      Result := Result + AStr[i];
+      'A' .. 'Z', 'a' .. 'z', '0', '1' .. '9', '-', '_', '~', '.':
+        Result := Result + AStr[i];
     else
       Result := Result + '%' + inttohex(ord(AStr[i]), 2);
     end;
@@ -117,6 +126,74 @@ begin
   Result := ReplaceStr(Result, '&#13;', #13);
   Result := ReplaceStr(Result, '&#xA;', #10);
   Result := ReplaceStr(Result, '&#xD;', #13);
+end;
+
+function StripNonNumeric(const AValue: string; AAllowDecimal: boolean = False;
+  AAllowNegative: boolean = False): string;
+var
+  i: integer;
+begin
+  Result := '';
+  if Trim(AValue) <> '' then
+  begin
+
+    for i := 1 to Length(AValue) do
+    begin
+      if (CharInSet(AValue[i], ['0' .. '9'])) or
+        ((AAllowDecimal) and (AValue[i] = '.')) or
+        ((AAllowNegative) and (AValue[i] = '-')) then
+      begin
+        Result := Result + AValue[i];
+      end;
+    end;
+  end;
+  Result := Trim(Result);
+end;
+
+function GetUserAppDataDir: string;
+begin
+  Result := IncludeTrailingPathDelimiter
+    (IncludeTrailingPathDelimiter(GetShellFolderPath(CSIDL_APPDATA)) +
+    Application.Title);
+  CheckDirectoryExists(Result, true);
+end;
+
+function GetShellFolderPath(AFolder: integer): string;
+const
+  SHGFP_TYPE_CURRENT = 0;
+var
+  path: array [0 .. MAX_PATH] of Char;
+begin
+  if SUCCEEDED(SHGetFolderPath(0, AFolder, 0, SHGFP_TYPE_CURRENT, @path[0]))
+  then
+    Result := path
+  else
+    Result := '';
+end;
+
+function CheckDirectoryExists(ADirectory: string; ACreate: boolean): boolean;
+begin
+  try
+    if ACreate then
+    begin
+      if not DirectoryExists(ADirectory) then
+      begin
+        ForceDirectories(ADirectory);
+      end;
+    end;
+  finally
+    Result := DirectoryExists(ADirectory);
+  end;
+end;
+
+function ExecuteFile(const Operation, FileName, Params, DefaultDir: string;
+  ShowCmd: word): integer;
+var
+  zFileName, zParams, zDir: array [0 .. 255] of Char;
+begin
+  Result := ShellExecute(Application.Handle, PChar(Operation),
+    StrPCopy(zFileName, FileName), StrPCopy(zParams, Params),
+    StrPCopy(zDir, DefaultDir), ShowCmd);
 end;
 
 end.
