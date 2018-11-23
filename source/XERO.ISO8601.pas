@@ -32,7 +32,7 @@ type
 implementation
 
 uses
-  XSBuiltIns,
+  SOAP.XSBuiltIns,
   SysUtils,
   IdGlobalProtocols;
 

@@ -18,6 +18,7 @@ uses
   Generics.Collections,
 
   // XERO
+  XERO.Types,
   XERO.API,
   XERO.JSONSAX,
   XERO.MiscUtil,
@@ -5094,7 +5095,7 @@ begin
         try
           dataStream.Position := 0;
           params.Values['xml'] := dataStream.DataString;
-          result := Post(AURL, params, respStream, ResponseCode, ErrorDetail, rtJSON);
+          result := Post(AURL, params, dataStream, respStream, ResponseCode, ErrorDetail, rtJSON);
         finally
           params.Free;
         end;
