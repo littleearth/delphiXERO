@@ -34,8 +34,7 @@ http://sourceforge.net/projects/dcpcrypt/
 
 # ToDo #
 ----------
-[ ] Access Token JWT decode (delphi-jose-jwt?)
-
+* Access Token JWT decode (delphi-jose-jwt?)
 
 ----------
 #Components#
@@ -53,13 +52,15 @@ OAuth2 PKCE Authentication ([https://developer.xero.com/documentation/oauth2/pkc
 This component will launch the authentication URL and will start a http:localhost:{port} server for authentication respons
 
 By default the HTTP Server attempts to start on port 58985, 58986 or 58987 
+
 The default scope is 'openid profile email accounting.transactions accounting.contacts accounting.settings'
+
 Use OnXEROAuthenticationURL to launch default browser or show within a browser in your application (NOTE: TWebBrowser IE Mode does not work)
 
-XEROAuthenticatorPKCE.OnXEROAuthenticationURL :=  { example OnXEROAuthenticationURL(ASender: TObject; AURL: string) }
-XEROAuthenticatorPKCE.OnXEROAuthenticationComplete :=  { example OnXEROAuthenticationComplete(ASender: TObject; ASuccess: Boolean) }
-XEROAuthenticatorPKCE.Scope := 'openid profile email accounting.transactions accounting.contacts accounting.settings';
-XEROAuthenticatorPKCE.Login;
+	XEROAuthenticatorPKCE.OnXEROAuthenticationURL :=  { example OnXEROAuthenticationURL(ASender: TObject; AURL: string) }
+	XEROAuthenticatorPKCE.OnXEROAuthenticationComplete :=  { example OnXEROAuthenticationComplete(ASender: TObject; ASuccess: Boolean) }
+	XEROAuthenticatorPKCE.Scope := 'openid profile email accounting.transactions accounting.contacts accounting.settings';
+	XEROAuthenticatorPKCE.Login;
 
 Upon login FXEROAuthenticatorPKCE.AuthToken and XEROAuthenticatorPKCE.Tenants will be populated
 
