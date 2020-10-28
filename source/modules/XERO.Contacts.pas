@@ -4,7 +4,8 @@ interface
 
 uses
   System.SysUtils, DB,
-  Classes, XERO.API, XERO.Types, XERO.API.Response.JSON, XERO.Model, XERO.Response.Model,
+  Classes, XERO.API, XERO.Types, XERO.API.Response.JSON, XERO.Model,
+  XERO.Response.Model, XERO.Request.Model,
   XERO.Contact.Model;
 
 type
@@ -18,14 +19,19 @@ type
     property Contacts: TXMContacts read FContacts;
   end;
 
+  TXEROContactRequest = class(TXERORequest)
+  private
+    [XEROModelManagedAttribute]
+    FContacts: TXMContacts;
+  public
+    property Contacts: TXMContacts read FContacts;
+  end;
+
   TXEROContacts = class(TXEROAPI)
   private
-    FXEROResponseJSON: TXEROResponseJSON;
   protected
     function GetAPIURL: string; override;
-    property XEROResponseJSON: TXEROResponseJSON read FXEROResponseJSON;
   public
-    procedure AfterConstruction; override;
     function Search(APage: Integer = 0; AOrderBy: string = '';
       AContactID: string = ''; ContactNumber: string = ''; AIDList: string = '';
       AIncludeArchived: boolean = false; ALastModified: TDateTime = 0)
@@ -38,35 +44,38 @@ implementation
 
 function TXEROContacts.Search(APage: Integer;
   AOrderBy, AContactID, ContactNumber, AIDList: string;
-  AIncludeArchived: boolean; ALastModified: TDateTime)
-  : TXEROContactResponse;
+  AIncludeArchived: boolean; ALastModified: TDateTime): TXEROContactResponse;
+var
+  LXEROFilter: TXEROFilter;
+  LXEROResponseJSON: TXEROResponseJSON;
 begin
   Result := TXEROContactResponse.Create;
-  ResetFilter;
-  AddGUIDToFilter('ContactID', AContactID);
-  AddToFilter('ContactNumber', ContactNumber);
-  AddToFilter('IDs', AIDList);
-  if AIncludeArchived then
-    AddToFilter('includeArchived', 'true');
-  if Find(Filter, AOrderBy, APage, ALastModified) then
-  begin
-    if XEROResponseJSON.Result then
+  LXEROFilter := TXEROFilter.Create;
+  LXEROResponseJSON := TXEROResponseJSON.Create(nil);
+  try
+    LXEROFilter.AddGUIDToFilter('ContactID', AContactID);
+    LXEROFilter.AddToFilter('ContactNumber', ContactNumber);
+    LXEROFilter.AddToFilter('IDs', AIDList);
+    if AIncludeArchived then
+      LXEROFilter.AddToFilter('includeArchived', 'true');
+    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified) then
     begin
-      Result.FromJSON(XEROResponseJSON.AsString);
-    end
-    else
-    begin
-      raise EXEROContactException.Create(XEROResponseJSON.ErrorMessage);
+      if LXEROResponseJSON.Result then
+      begin
+        Result.FromJSON(LXEROResponseJSON.AsString);
+      end
+      else
+      begin
+        raise EXEROContactException.Create(LXEROResponseJSON.ErrorMessage);
+      end;
     end;
+  finally
+    FreeAndNil(LXEROFilter);
+    FreeAndNil(LXEROResponseJSON);
   end;
 end;
 
-procedure TXEROContacts.AfterConstruction;
-begin
-  inherited;
-  FXEROResponseJSON := TXEROResponseJSON.Create(nil);
-  Response := FXEROResponseJSON;
-end;
 
 function TXEROContacts.GetAPIURL: string;
 begin

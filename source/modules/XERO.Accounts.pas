@@ -4,11 +4,12 @@ interface
 
 uses
   System.SysUtils, DB,
-  Classes, XERO.API, XERO.Types, XERO.API.Response.JSON, XERO.Model, XERO.Response.Model,
+  Classes, XERO.API, XERO.Types, XERO.API.Response.JSON, XERO.Model,
+  XERO.Response.Model, XERO.Request.Model,
   XERO.Account.Model;
 
 type
-  EXEROContactException = EXEROException;
+  EXEROAccountException = EXEROException;
 
   TXEROAccountResponse = class(TXEROResponse)
   private
@@ -20,14 +21,11 @@ type
 
   TXEROAccounts = class(TXEROAPI)
   private
-    FXEROResponseJSON: TXEROResponseJSON;
   protected
     function GetAPIURL: string; override;
-    property XEROResponseJSON: TXEROResponseJSON read FXEROResponseJSON;
   public
-    procedure AfterConstruction; override;
     function Search(APage: Integer = 0; AOrderBy: string = '';
-      AItemID: string = ''; ACode: string = ''; ALastModified: TDateTime = 0)
+      AAccountID: string = ''; ACode: string = ''; ALastModified: TDateTime = 0)
       : TXEROAccountResponse;
   end;
 
@@ -35,31 +33,35 @@ implementation
 
 { TXEROAccounts }
 
-function TXEROAccounts.Search(APage: Integer; AOrderBy, AItemID, ACode: string;
-  ALastModified: TDateTime): TXEROAccountResponse;
+function TXEROAccounts.Search(APage: Integer;
+  AOrderBy, AAccountID, ACode: string; ALastModified: TDateTime)
+  : TXEROAccountResponse;
+var
+  LXEROFilter: TXEROFilter;
+  LXEROResponseJSON: TXEROResponseJSON;
 begin
   Result := TXEROAccountResponse.Create;
-  ResetFilter;
-  AddGUIDToFilter('ContactID', AItemID);
-  AddToFilter('Code', ACode);
-  if Find(Filter, AOrderBy, APage, ALastModified) then
-  begin
-    if XEROResponseJSON.Result then
+  LXEROFilter := TXEROFilter.Create;
+  LXEROResponseJSON := TXEROResponseJSON.Create(nil);
+  try
+    LXEROFilter.AddGUIDToFilter('AccountID', AAccountID);
+    LXEROFilter.AddToFilter('Code', ACode);
+    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified) then
     begin
-      Result.FromJSON(XEROResponseJSON.AsString);
-    end
-    else
-    begin
-      raise EXEROContactException.Create(XEROResponseJSON.ErrorMessage);
+      if LXEROResponseJSON.Result then
+      begin
+        Result.FromJSON(LXEROResponseJSON.AsString);
+      end
+      else
+      begin
+        raise EXEROAccountException.Create(LXEROResponseJSON.ErrorMessage);
+      end;
     end;
+  finally
+    FreeAndNil(LXEROFilter);
+    FreeAndNil(LXEROResponseJSON);
   end;
-end;
-
-procedure TXEROAccounts.AfterConstruction;
-begin
-  inherited;
-  FXEROResponseJSON := TXEROResponseJSON.Create(nil);
-  Response := FXEROResponseJSON;
 end;
 
 function TXEROAccounts.GetAPIURL: string;

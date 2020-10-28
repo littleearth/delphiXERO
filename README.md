@@ -3,7 +3,9 @@ XERO accounting API for Delphi
 
 [http://developer.xero.com/ ](http://developer.xero.com/ )
 
-Supports Delphi XE6 upwards. *(Currently only tested in Tokyo)*
+Supports Delphi Sydney
+
+* Older versions may work but this has not been tested.
 
 > This is a work in progress so design and requirements may change.
 
@@ -30,17 +32,36 @@ http://sourceforge.net/projects/dcpcrypt/
 - Michael ([https://github.com/frogonwheels](https://github.com/frogonwheels))
 
 
+# ToDo #
+----------
+[ ] Access Token JWT decode (delphi-jose-jwt?)
+
 
 ----------
 #Components#
 
 ## TXEROAppDetails ##
 
-Store XERO credentials
+Store XERO App Details
 
-      FXEROAppDetails.Privatekey.Text := 'MIICXgIBAAKBgQ....';
-      FXEROAppDetails.ConsumerKey := 'A12345';
-      FXEROAppDetails.ConsumerSecret := 'A54321';
+XEROAppDetails.ClientID := '4D914DECC5F34C4D882F76F0....';
+
+## TXEROAuthenticatorPKCE ##
+
+OAuth2 PKCE Authentication ([https://developer.xero.com/documentation/oauth2/pkce-flow])
+
+This component will launch the authentication URL and will start a http:localhost:{port} server for authentication respons
+
+By default the HTTP Server attempts to start on port 58985, 58986 or 58987 
+The default scope is 'openid profile email accounting.transactions accounting.contacts accounting.settings'
+Use OnXEROAuthenticationURL to launch default browser or show within a browser in your application (NOTE: TWebBrowser IE Mode does not work)
+
+XEROAuthenticatorPKCE.OnXEROAuthenticationURL :=  { example OnXEROAuthenticationURL(ASender: TObject; AURL: string) }
+XEROAuthenticatorPKCE.OnXEROAuthenticationComplete :=  { example OnXEROAuthenticationComplete(ASender: TObject; ASuccess: Boolean) }
+XEROAuthenticatorPKCE.Scope := 'openid profile email accounting.transactions accounting.contacts accounting.settings';
+XEROAuthenticatorPKCE.Login;
+
+Upon login FXEROAuthenticatorPKCE.AuthToken and XEROAuthenticatorPKCE.Tenants will be populated
 
 
 ## TXEROApiJSON ##
@@ -49,87 +70,31 @@ Provide a simple interface for calling the XERO API
 
 ## Get ##
     var
-     LXEROAPI: TXEROApiJSON;
+     LAPI: TXEROApiJSON;
     begin
-      LXEROAPI := TXEROApiJSON.Create(nil);
+      LAPI := TXEROApiJSON.Create(nil);
       try
-    	LXEROAPI.XEROAppDetails := FXEROAppDetails;
-    	LJSON := LXEROAPI.Get('Contacts','page=1');
+    	LAPI.XEROAppDetails := FXEROAppDetails;
+		LAPI.TenantID := '06c6ccf8-bd57-4d2f-a36e-396b2af59f24';
+    	LJSON := LAPI.Get('Contacts','page=1');
       finally
-    	FreeAndNil(LXEROAPI);
+    	FreeAndNil(LAPI);
       end;
     end;
 
 ## Post ##
     var
-     LXEROAPI: TXEROApiJSON;
+     LAPI: TXEROApiJSON;
     begin
-      LXEROAPI := TXEROApiJSON.Create(nil);
-      try
-    	LXEROAPI.XEROAppDetails := FXEROAppDetails;
-    	LJSON := LXEROAPI.Post('Contacts','[JSON data]');
-      finally
-    	FreeAndNil(LXEROAPI);
-      end;
-    end;
-
-
-## TXERO{Module} ## (eg TXEROContacts)
-
-A complete list is still in progress but helper objects for different XERO modules exists
-
- 
-    var
-      LAPI: TXEROContacts;
-      LData: TXEROContactResponse;
-    begin
-      LAPI := TXEROContacts.Create(nil);
+      LAPI := TXEROApiJSON.Create(nil);
       try
     	LAPI.XEROAppDetails := FXEROAppDetails;
-		// Search(Page, OrderBy, ContactID, ContactNumber, IncludeArchived
-    	LData := LAPI.Search(1, '', '','', '',false);
-    	if LData.Contacts.Count > 0 then
-		begin
-			ShowMessage(LData.Contacts.Item[0].Name);
-		end;
-		// AsJSON(Formatted)
-		LData.Contacts.AsJSON(true);
+		LAPI.TenantID := '06c6ccf8-bd57-4d2f-a36e-396b2af59f24';
+    	LJSON := LAPI.Post('Contacts','[JSON data]');
       finally
     	FreeAndNil(LAPI);
       end;
     end;
 
-## TXEROModel ##
 
-Models of the type TXM{Type} exist for population (eg TXMContact)
 
-## TXEROModelList ##
-
-A list of TXEROModels (eg TXMContacts)
-
-## TXEROModelDataset<T: TXEROModel>
-
-Allows the conversion of models to a dataset
-
-    var
-      LAPI: TXEROContacts;
-      LData: TXEROContactResponse;
-	  LContactDataset : TXEROContactDataset;
-    begin
-      LAPI := TXEROContacts.Create(nil);
-	  LContactDataset := TXEROContactDataset.Create;
-      try
-    	LAPI.XEROAppDetails := FXEROAppDetails;
-		// Search(Page, OrderBy, ContactID, ContactNumber, IncludeArchived
-    	LData := LAPI.Search(1, '', '','', '',false);
-    	LContactDataset.StoreModelList(LData.Contacts);
-		While not LContactDataset.Dataset.Eof do
-			begin
-				ShowMessage(LContactDataset.Dataset.FieldByName('Name').AsString);	
-				LContactDataset.Dataset.Next;
-			end;
-      finally
-    	FreeAndNil(LAPI);
-	    FreeAndNil(LContactDataset);
-      end;
-    end;

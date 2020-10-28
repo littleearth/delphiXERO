@@ -5,14 +5,21 @@ unit XERO.Types;
 interface
 
 uses
-  SysUtils, Classes, System.SyncObjs;
+  Windows, Messages,
+  System.SyncObjs, System.SysUtils, System.Variants, System.Classes;
 
 const
   XERO_API_BASE_URL = 'https://api.xero.com/api.xro/2.0/';
+  XERO_API_IDENTITY_URL = 'https://login.xero.com/identity/';
+  XERO_API_CONNECTION_URL = 'https://api.xero.com/connections';
+  XERO_API_IDENTITY_DEFAULT_SCOPE =
+    'openid profile email accounting.transactions accounting.contacts accounting.settings';
+  XERO_HTTP_SERVER_FIRST_PORT = 58985;
+  XERO_HTTP_REDIRECT_ENDPOINT = '/xero';
+  XERO_HTTP_MAX_RUN_MINUTES = 2;
 
 type
   EXEROException = class(Exception);
-  TOAuthSignatureMethod = (oaHMAC, oaRSA);
   TLogLevel = (logError, logWarning, logInformation, logDebug);
   TResponseType = (rtXML, rtJSON);
 
@@ -123,6 +130,20 @@ type
       write SetStrings; default;
     property Text: string read GetAsText write SetAsText;
     property Sorted: boolean read GetSorted write SetSorted;
+  end;
+
+  TThreadTimer = class(TThread)
+  private
+    FActive: boolean;
+    FTerminateEvent: TEvent;
+    FOnTimer: TNotifyEvent;
+    FTimeout: integer;
+    procedure SyncOnTimer;
+  public
+    constructor Create(AOnTimer: TNotifyEvent; ATimeout: integer = 1000);
+    destructor Destroy; override;
+    procedure Execute; override;
+    procedure Terminate; reintroduce;
   end;
 
 implementation
@@ -642,6 +663,68 @@ begin
     FStringList.Text := S;
   finally
     UnlockList;
+  end;
+end;
+
+{ TThreadTimer }
+
+constructor TThreadTimer.Create(AOnTimer: TNotifyEvent;
+  ATimeout: integer = 1000);
+begin
+  FTerminateEvent := TEvent.Create;
+  FOnTimer := AOnTimer;
+  FTimeout := ATimeout;
+  inherited Create(false);
+  FreeOnTerminate := True;
+end;
+
+destructor TThreadTimer.Destroy;
+begin
+  try
+    Terminate;
+    FOnTimer := nil;
+    FActive := false;
+    FTerminateEvent.Free;
+    FTerminateEvent := nil;
+  finally
+    inherited;
+  end;
+end;
+
+procedure TThreadTimer.SyncOnTimer;
+begin
+  if Assigned(FOnTimer) and (FActive) then
+  begin
+    try
+      FOnTimer(Self);
+    except
+    end;
+  end;
+end;
+
+procedure TThreadTimer.Terminate;
+begin
+  try
+    FTerminateEvent.SetEvent;
+  finally
+    inherited;
+  end;
+end;
+
+procedure TThreadTimer.Execute;
+begin
+  FActive := True;
+  while (not Terminated) do
+  begin
+    try
+      if not Terminated then
+      begin
+        Synchronize(SyncOnTimer);
+      end;
+      WaitForSingleObject(FTerminateEvent.Handle, FTimeout);
+    except
+
+    end;
   end;
 end;
 

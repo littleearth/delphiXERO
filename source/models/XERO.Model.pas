@@ -301,9 +301,9 @@ type
     function Find: T; virtual;
     property DirtyCount: integer read GetDirtyCount;
     function GetJSONArray(AJSON: string): TJSONArray; virtual;
-    function GetAsJSON: string; virtual;
-    procedure GetAsJSONAsync(AProc: TProc<string>;
-      AFormat: Boolean = false); virtual;
+    function GetAsJSON(AName: string = ''): string; virtual;
+    procedure GetAsJSONAsync(AProc: TProc<string>; AFormat: Boolean = false;
+      AName: string = ''); virtual;
     procedure SetFromJSON(AJSON: string); virtual;
     procedure SetFromJSONAsync(AJSON: string;
       AProc: TProc < TXEROModelList < T >> ); virtual;
@@ -320,8 +320,10 @@ type
     procedure CloneList(AList: TXEROModelList<T>; AClear: Boolean = true);
     procedure Assign(AList: TXEROModelList<T>); reintroduce;
     procedure Clear;
+    function AsJSONArray(AName: string; AFormat: Boolean = false): string;
     function AsJSON(AFormat: Boolean = false): string;
-    procedure AsJSONAsync(AProc: TProc<string>; AFormat: Boolean = false);
+    procedure AsJSONAsync(AProc: TProc<string>; AFormat: Boolean = false;
+      AName: string = '');
     procedure FromJSON(AJSON: string);
     procedure FromJSONAsync(AJSON: string;
       AProc: TProc < TXEROModelList < T >> = nil);
@@ -419,7 +421,7 @@ begin
   end;
 end;
 
-function TXEROModelList<T>.GetAsJSON: string;
+function TXEROModelList<T>.GetAsJSON(AName: string): string;
 var
   LModel: T;
   LModelJSON: string;
@@ -441,12 +443,19 @@ begin
       end;
     end;
   finally
-    Result := Format('[ %s ]', [Result]);
+    if not IsEmptyString(AName) then
+    begin
+      Result := Format('{ "%s":[ %s ] }', [AName, Result]);
+    end
+    else
+    begin
+      Result := Format('[ %s ]', [Result]);
+    end;
   end;
 end;
 
 procedure TXEROModelList<T>.GetAsJSONAsync(AProc: TProc<string>;
-  AFormat: Boolean);
+  AFormat: Boolean; AName: string);
 var
   LXEROModel: T;
   LJSON: string;
@@ -454,7 +463,7 @@ begin
   TTask.Create(
     procedure
     begin
-      LJSON := GetAsJSON;
+      LJSON := GetAsJSON(AName);
       if AFormat then
         LJSON := FormatJSON(LJSON);
       if Assigned(AProc) then
@@ -609,6 +618,7 @@ begin
   FList.Clear;
 end;
 
+
 function TXEROModelList<T>.AsJSON(AFormat: Boolean): string;
 begin
   try
@@ -619,7 +629,18 @@ begin
   end;
 end;
 
-procedure TXEROModelList<T>.AsJSONAsync(AProc: TProc<string>; AFormat: Boolean);
+function TXEROModelList<T>.AsJSONArray(AName: string; AFormat: Boolean): string;
+begin
+   try
+    Result := GetAsJSON(AName);
+  finally
+    if AFormat then
+      Result := FormatJSON(Result);
+  end;
+end;
+
+procedure TXEROModelList<T>.AsJSONAsync(AProc: TProc<string>; AFormat: Boolean;
+AName: string);
 begin
   GetAsJSONAsync(AProc, AFormat);
 end;
@@ -1369,7 +1390,7 @@ function TXEROModelDateTimeHelper.DoStringToDateTime(AValue: string): TDateTime;
 begin
   if IsXERODate(AValue) then
   begin
-    Result := DateOf(DoXeroDateToDateTime(AValue));
+    Result := DoXeroDateToDateTime(AValue);
   end
   else
   begin
@@ -1379,12 +1400,14 @@ end;
 
 function TXEROModelDateTimeHelper.DoDateToString(AValue: TDate): string;
 begin
-  Result := DateToStr(AValue, FFormatSettings);
+  // Result := DateToStr(AValue, FFormatSettings);
+  Result := DoDateTimeToXeroDateTime(AValue);
 end;
 
 function TXEROModelDateTimeHelper.DoTimeToString(AValue: TTime): string;
 begin
-  Result := TimeToStr(AValue, FFormatSettings);
+  // Result := TimeToStr(AValue, FFormatSettings);
+  Result := DoDateTimeToXeroDateTime(AValue);
 end;
 
 function TXEROModelDateTimeHelper.DoXeroDateToDateTime(AValue: string)
@@ -1553,8 +1576,6 @@ var
   LRecordType: TRttiType;
   LProp: TRttiProperty;
   LFieldName, LPRopertyName: string;
-  LField: TField;
-  LHandled: Boolean;
   LAllowProperty: Boolean;
 begin
   if AClear then
@@ -1715,11 +1736,6 @@ begin
                 Error(E);
               end;
             end;
-          end
-          else
-          begin
-            Debug('SaveToDataset', Format('Field "%s" not found or Ignored.',
-              [LFieldName]));
           end;
         end;
       end;
@@ -2101,9 +2117,6 @@ begin
 
   DoDeserializeProperty(AProp, AJsonValue, AHandled);
 
-  Debug('DoDeserializePropertyInternal', AProp.Name + ' -> ' +
-    AJsonValue.ToJSON);
-
   if not AHandled then
   begin
     if AJsonValue.Null then
@@ -2118,8 +2131,6 @@ begin
     if (AProp.PropertyType.Handle = TypeInfo(string)) then
     begin
       LValue := (AJsonValue.JsonValue as TJSONString).Value;
-      Debug('DoDeserializePropertyInternal', AProp.Name + ' String ' +
-        LValue.ToString);
       AProp.SetValue(Model, LValue);
       AHandled := true;
     end;
@@ -2130,7 +2141,6 @@ begin
 
     if (AProp.PropertyType.Handle = TypeInfo(TDate)) then
     begin
-      // LValue := ISO8601ToDate((AJsonValue.JsonValue as TJSONString).Value);
       LValue := Model.XEROModelDateTimeHelperClass.StringToDate
         ((AJsonValue.JsonValue as TJSONString).Value);
       AProp.SetValue(Model, LValue);
@@ -2138,7 +2148,6 @@ begin
     end;
     if (AProp.PropertyType.Handle = TypeInfo(TTime)) then
     begin
-      // LValue := ISO8601ToDate((AJsonValue.JsonValue as TJSONString).Value);
       LValue := Model.XEROModelDateTimeHelperClass.StringToTime
         ((AJsonValue.JsonValue as TJSONString).Value);
       AProp.SetValue(Model, LValue);
@@ -2146,7 +2155,6 @@ begin
     end;
     if (AProp.PropertyType.Handle = TypeInfo(TDateTime)) then
     begin
-      // LValue := ISO8601ToDate((AJsonValue.JsonValue as TJSONString).Value);
       LValue := Model.XEROModelDateTimeHelperClass.StringToDateTime
         ((AJsonValue.JsonValue as TJSONString).Value);
       AProp.SetValue(Model, LValue);
@@ -2160,8 +2168,6 @@ begin
     if (AProp.PropertyType.Handle = TypeInfo(integer)) then
     begin
       LValue := (AJsonValue.JsonValue as TJSONNumber).AsInt;
-      Debug('DoDeserializePropertyInternal', AProp.Name + ' Integer ' +
-        LValue.ToString);
       AProp.SetValue(Model, LValue);
       AHandled := true;
     end;
@@ -2180,8 +2186,6 @@ begin
       (AProp.PropertyType.Handle = TypeInfo(currency)) then
     begin
       LValue := (AJsonValue.JsonValue as TJSONNumber).AsDouble;
-      Debug('DoDeserializePropertyInternal', AProp.Name + ' Double ' +
-        LValue.ToString);
       AProp.SetValue(Model, LValue);
       AHandled := true;
     end;
@@ -2200,7 +2204,7 @@ end;
 function TXEROModelJSONMarshaller.DoFormat(AJsonValue: TJSONValue): string;
 begin
   try
-    Result := TJson.Format(AJsonValue);
+    Result := AJsonValue.Format;
   except
     Result := AJsonValue.ToJSON;
   end;
@@ -2255,40 +2259,40 @@ function TXEROModelJSONMarshaller.DoSerializePropertyInternal
 var
   LDateTime: TDateTime;
   LValue: string;
+  LHandled: Boolean;
 begin
   Result := DoSerializeProperty(AProp);
+  LHandled := Assigned(Result);
 
-  if not Assigned(Result) then
-    if (AProp.PropertyType.TypeKind in [tkString, tkLString, tkWString,
-      tkUString]) then
-    begin
-      LValue := AProp.GetValue(Model).AsType<string>;
-      Result := TJSONString.Create(LValue);
-    end;
-
-  if not Assigned(Result) then
+  if not LHandled then
     if (AProp.PropertyType.TypeKind in [tkInteger, tkInt64]) then
     begin
       Result := TJSONNumber.Create(AProp.GetValue(Model).AsInteger);
+      LHandled := true;
     end;
 
-  if not Assigned(Result) then
+  if not LHandled then
     if AProp.PropertyType.Handle = TypeInfo(Boolean) then
     begin
       Result := TJSONBool.Create(AProp.GetValue(Model).AsBoolean);
+      LHandled := true;
     end;
 
-  if not Assigned(Result) then
+  if not LHandled then
   begin
     if (AProp.PropertyType.Handle = TypeInfo(TDate)) then
     begin
+      LHandled := true;
       LDateTime := AProp.GetValue(Model).AsExtended;
       if LDateTime <> 0 then
+      begin
         Result := TJSONString.Create
           (Model.XEROModelDateTimeHelperClass.DateToString(LDateTime));
+      end;
     end;
     if (AProp.PropertyType.Handle = TypeInfo(TTime)) then
     begin
+      LHandled := true;
       LDateTime := AProp.GetValue(Model).AsExtended;
       if LDateTime <> 0 then
         Result := TJSONString.Create
@@ -2296,6 +2300,7 @@ begin
     end;
     if (AProp.PropertyType.Handle = TypeInfo(TDateTime)) then
     begin
+      LHandled := true;
       LDateTime := AProp.GetValue(Model).AsExtended;
       if LDateTime <> 0 then
         Result := TJSONString.Create
@@ -2303,13 +2308,29 @@ begin
     end;
   end;
 
-  if not Assigned(Result) then
+  if not LHandled then
     if (AProp.PropertyType.TypeKind in [tkFloat]) then
     begin
       Result := TJSONNumber.Create(AProp.GetValue(Model).AsExtended);
+      LHandled := true;
     end;
 
-  if not Assigned(Result) then
+  if not LHandled then
+    if (AProp.PropertyType.TypeKind in [tkString, tkLString, tkWString,
+      tkUString]) then
+    begin
+      LHandled := true;
+      LValue := AProp.GetValue(Model).AsType<string>;
+      if not IsEmptyString(LValue) then
+      begin
+        Result := TJSONString.Create(LValue);
+      end
+      else
+      begin
+        Result := nil;
+      end;
+    end;
+  if (not LHandled) then
   begin
     Result := TJSONString.Create(AProp.GetValue(Model).ToString);
   end;
@@ -2532,12 +2553,11 @@ begin
         end;
         if LAllowProperty then
         begin
-          LJSONPair := LJSON.Get(GetPropertyJSONName(LProp));
+          LPRopertyName := GetPropertyJSONName(LProp);
+          LJSONPair := LJSON.Get(LPRopertyName);
 
           if Assigned(LJSONPair) then
           begin
-            Debug('DoDeserialize', 'Property: ' + LPRopertyName + ' => JSON: ' +
-              LJSONPair.ToJSON);
             try
               LHandled := false;
               if (LProp.PropertyType.TypeKind = tkClass) then
@@ -2561,13 +2581,10 @@ begin
           end
           else
           begin
-            Error('Failed to get property, check your property case ' +
-              LPRopertyName);
+            Error(SysUtils.Format
+              ('Failed to get property, check your property case %s (PropertyName: %s)',
+              [LPRopertyName, LProp.Name]));
           end;
-        end
-        else
-        begin
-          Debug('SetFromJSON', 'Property not allowed ' + LPRopertyName);
         end;
 
       end;
@@ -2584,8 +2601,6 @@ end;
 function TXEROModelJSONMarshaller.GetPropertyJSONName
   (AProp: TRttiProperty): string;
 var
-  LlowerText: string;
-  LrestText: string;
   LAttribute: TCustomAttribute;
 begin
   Result := AProp.Name;

@@ -4,38 +4,24 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants,
-  System.Classes, Vcl.Graphics,
+  System.Classes, Vcl.Graphics, System.UITypes,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.Imaging.pngimage, Vcl.ExtCtrls,
   Vcl.StdCtrls, Vcl.Samples.Spin, Vcl.ComCtrls, XERO.API, XERO.Model.Dataset,
-  Data.DB, Vcl.Grids, Vcl.DBGrids;
+  XERO.Authenticator.PKCE, Data.DB, Vcl.Grids, Vcl.DBGrids;
 
 type
   TfrmXERODemo = class(TForm)
     DataSourceDataset: TDataSource;
     PageControlMenu: TPageControl;
-    tabAPI: TTabSheet;
+    tabAPISearch: TTabSheet;
     tabDataset: TTabSheet;
-    PageControlData: TPageControl;
+    PageControlSearchData: TPageControl;
     tabDataJSON: TTabSheet;
     memoJSON: TMemo;
     tabLog: TTabSheet;
     Panel13: TPanel;
     btnRefreshLog: TButton;
     memoLog: TMemo;
-    tabOptions: TTabSheet;
-    PageControlOptions: TPageControl;
-    tabConsumerDetails: TTabSheet;
-    GroupBox2: TGroupBox;
-    Label3: TLabel;
-    Label4: TLabel;
-    lblFileName: TLabel;
-    lblInfo: TLabel;
-    editConsumerKey: TEdit;
-    editConsumerSecret: TEdit;
-    tabPublicKey: TTabSheet;
-    memoPublicKey: TMemo;
-    tabPrivateKey: TTabSheet;
-    memoPrivateKey: TMemo;
     tabAbout: TTabSheet;
     GroupBox4: TGroupBox;
     Image1: TImage;
@@ -46,7 +32,7 @@ type
     memoDatasetJSON: TMemo;
     Panel15: TPanel;
     btnJSONtoDataset: TButton;
-    PageControlMain: TPanel;
+    pnlAPISearch: TPanel;
     Panel1: TPanel;
     btnSearch: TButton;
     Panel4: TPanel;
@@ -95,34 +81,71 @@ type
     Panel22: TPanel;
     Label12: TLabel;
     editSearchCustomLastModified: TDateTimePicker;
+    tabAPIStore: TTabSheet;
+    Panel21: TPanel;
+    Panel23: TPanel;
+    btnStoreExecute: TButton;
+    Panel24: TPanel;
+    Label11: TLabel;
+    Panel25: TPanel;
+    comboStoreModel: TComboBox;
+    RadioGroupStoreMethod: TRadioGroup;
+    memoStoreJSON: TMemo;
+    Panel26: TPanel;
+    Label13: TLabel;
+    memoStoreResponse: TMemo;
+    Panel27: TPanel;
+    Label14: TLabel;
+    editStoreGUID: TEdit;
+    Panel28: TPanel;
+    btnAuthenticate: TButton;
+    Panel29: TPanel;
+    Label15: TLabel;
+    comboTenants: TComboBox;
+    Panel30: TPanel;
+    Label3: TLabel;
+    editClientID: TEdit;
+    Panel31: TPanel;
+    Label4: TLabel;
+    editScope: TEdit;
     procedure btnAPIJSONCopyClick(Sender: TObject);
     procedure btnAPIJsonToDatasetClick(Sender: TObject);
+    procedure btnAuthenticateClick(Sender: TObject);
     procedure btnJSONClearClick(Sender: TObject);
     procedure btnJSONPasteClick(Sender: TObject);
     procedure btnJSONtoDatasetClick(Sender: TObject);
     procedure btnRefreshLogClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnSearchClick(Sender: TObject);
+    procedure btnStoreExecuteClick(Sender: TObject);
+    procedure comboStoreModelChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
-    procedure lblFileNameDblClick(Sender: TObject);
-    procedure PageControlDataChange(Sender: TObject);
+    procedure PageControlMenuChange(Sender: TObject);
   private
     FSettingsFileName: TFileName;
     FXEROAppDetails: TXEROAppDetails;
+    FXEROAuthenticatorPKCE: TXEROAuthenticatorPKCE;
     FDatasetList: TXEROModelDatasets;
     procedure LoadSettings;
     procedure SaveSettings;
     procedure ApplySettings;
+    procedure UpdateTenants;
     procedure SearchContacts;
     procedure SearchItems;
     procedure SearchAccounts;
     procedure SearchInvoices;
     procedure SearchCustom;
+    function GetTenant: string;
     function GetPage: integer;
     function GetOrderBy: string;
     procedure DestroyDataset;
     procedure CreateDataset;
     procedure ResizeDBGrid(ADBGrid: TDBGrid);
+    function GetStoreModel(AModel: string): string;
+    procedure Post(AURL: string; AJSON: string);
+    procedure Put(AURL, AJSON: string);
+    procedure OnXEROAuthenticationURL(ASender: TObject; AURL: string);
+    procedure OnXEROAuthenticationComplete(ASender: TObject; ASuccess: Boolean);
   public
     { Public declarations }
   end;
@@ -136,11 +159,31 @@ implementation
 
 uses
   System.IniFiles, System.DateUtils, XERO.Utils,
-  XERO.Log, XERO.Log.Basic, XERO.Response.Model,
+  XERO.Log, XERO.Log.Basic,
+  XERO.Response.Model, XERO.Request.Model,
   XERO.Contacts, XERO.Contacts.Dataset, XERO.API.JSON,
   XERO.Items,
   XERO.Accounts,
   XERO.Invoices;
+
+procedure TfrmXERODemo.OnXEROAuthenticationURL(ASender: TObject; AURL: string);
+begin
+  OpenDefaultBrowser(AURL);
+end;
+
+procedure TfrmXERODemo.OnXEROAuthenticationComplete(ASender: TObject;
+  ASuccess: Boolean);
+begin
+  if ASuccess then
+  begin
+    MessageDlg('Success', mtInformation, [mbOk], 0);
+    UpdateTenants;
+  end
+  else
+  begin
+    MessageDlg('Failed', mtError, [mbOk], 0);
+  end;
+end;
 
 procedure TfrmXERODemo.ResizeDBGrid(ADBGrid: TDBGrid);
 var
@@ -202,12 +245,23 @@ begin
   Result := StrToIntDef(editPage.Text, 0);
 end;
 
+function TfrmXERODemo.GetStoreModel(AModel: string): string;
+begin
+  Result := '';
+
+end;
+
+function TfrmXERODemo.GetTenant: string;
+begin
+  Result := '';
+  if comboTenants.ItemIndex <> -1 then
+    Result := comboTenants.Items[comboTenants.ItemIndex];
+end;
+
 procedure TfrmXERODemo.ApplySettings;
 begin
-  FXEROAppDetails.Privatekey.Text := memoPrivateKey.Lines.Text;
-  FXEROAppDetails.PublicKey.Text := memoPublicKey.Lines.Text;
-  FXEROAppDetails.ConsumerKey := editConsumerKey.Text;
-  FXEROAppDetails.ConsumerSecret := editConsumerSecret.Text;
+  FXEROAppDetails.ClientID := editClientID.Text;
+  FXEROAuthenticatorPKCE.Scope := editScope.Text;
 end;
 
 procedure TfrmXERODemo.btnAPIJSONCopyClick(Sender: TObject);
@@ -220,6 +274,15 @@ begin
   PageControlMenu.ActivePage := tabDataset;
   memoDatasetJSON.Text := memoJSON.Text;
   btnJSONtoDatasetClick(Sender);
+end;
+
+procedure TfrmXERODemo.btnAuthenticateClick(Sender: TObject);
+begin
+  ApplySettings;
+  if not FXEROAuthenticatorPKCE.Authenticated then
+  begin
+    FXEROAuthenticatorPKCE.Login;
+  end
 end;
 
 procedure TfrmXERODemo.btnJSONClearClick(Sender: TObject);
@@ -246,29 +309,56 @@ end;
 procedure TfrmXERODemo.btnSearchClick(Sender: TObject);
 begin
   ApplySettings;
-  PageControlData.ActivePageIndex := 0;
-  memoLog.Clear;
-  if PageControlSearch.ActivePage = tabContacts then
+  if FXEROAuthenticatorPKCE.Authenticated then
   begin
-    SearchContacts;
+    PageControlSearchData.ActivePageIndex := 0;
+    memoLog.Clear;
+    if PageControlSearch.ActivePage = tabContacts then
+    begin
+      SearchContacts;
+    end;
+    if PageControlSearch.ActivePage = tabItems then
+    begin
+      SearchItems;
+    end;
+    if PageControlSearch.ActivePage = tabAccounts then
+    begin
+      SearchAccounts;
+    end;
+    if PageControlSearch.ActivePage = tabInvoices then
+    begin
+      SearchInvoices;
+    end;
+    if PageControlSearch.ActivePage = tabCustomSearch then
+    begin
+      SearchCustom;
+    end;
   end;
-  if PageControlSearch.ActivePage = tabItems then
-  begin
-    SearchItems;
-  end;
-  if PageControlSearch.ActivePage = tabAccounts then
-  begin
-    SearchAccounts;
-  end;
-  if PageControlSearch.ActivePage = tabInvoices then
-  begin
-    SearchInvoices;
-  end;
-  if PageControlSearch.ActivePage = tabCustomSearch then
-  begin
-    SearchCustom;
-  end;
+end;
 
+procedure TfrmXERODemo.btnStoreExecuteClick(Sender: TObject);
+var
+  LURL: string;
+begin
+  ApplySettings;
+  LURL := comboStoreModel.Text;
+  case RadioGroupStoreMethod.ItemIndex of
+    0:
+      begin
+        if not IsEmptyString(editStoreGUID.Text) then
+          LURL := LURL + '/' + editStoreGUID.Text;
+        Post(LURL, memoStoreJSON.Text);
+      end;
+  else
+    begin
+      Put(LURL, memoStoreJSON.Text);
+    end;
+  end;
+end;
+
+procedure TfrmXERODemo.comboStoreModelChange(Sender: TObject);
+begin
+  memoStoreJSON.Lines.Text := GetStoreModel(comboStoreModel.Text);
 end;
 
 procedure TfrmXERODemo.CreateDataset;
@@ -298,7 +388,7 @@ begin
   end
   else
   begin
-    MessageDlg('Failed to convert JSON', mtError, [mbOK], 0);
+    MessageDlg('Failed to convert JSON', mtError, [mbOk], 0);
   end;
 end;
 
@@ -311,10 +401,11 @@ begin
   LXEROAPI := TXEROApiJSON.Create(nil);
   try
     LXEROAPI.XEROAppDetails := FXEROAppDetails;
+    LXEROAPI.TenantId := GetTenant;
     LLastModified := 0;
     if editSearchCustomLastModified.Checked then
       LLastModified := editSearchCustomLastModified.date;
-    LJSON := LXEROAPI.Get(editSearchCustomURL.Text, editSearchCustomParams.Text,
+    LXEROAPI.Get(editSearchCustomURL.Text, editSearchCustomParams.Text, LJSON,
       LLastModified);
     memoJSON.Text := LJSON;
   finally
@@ -334,19 +425,19 @@ end;
 procedure TfrmXERODemo.FormCreate(Sender: TObject);
 begin
   FXEROAppDetails := TXEROAppDetails.Create(Self);
+  FXEROAppDetails.AppName := Application.Title;
+  FXEROAuthenticatorPKCE := TXEROAuthenticatorPKCE.Create(Self);
+  FXEROAuthenticatorPKCE.OnAuthenticationURL := OnXEROAuthenticationURL;
+  FXEROAuthenticatorPKCE.OnAuthenticationComplete :=
+    OnXEROAuthenticationComplete;
+  FXEROAppDetails.XEROAuthenticator := FXEROAuthenticatorPKCE;
   PageControlMenu.ActivePageIndex := 0;
-  PageControlOptions.ActivePageIndex := 0;
   PageControlSearch.ActivePageIndex := 0;
-  PageControlData.ActivePageIndex := 0;
+  PageControlSearchData.ActivePageIndex := 0;
   FSettingsFileName := GetUserAppDataDir + 'settings.ini';
   FDatasetList := TXEROModelDatasets.Create;
+  comboStoreModelChange(Sender);
   LoadSettings;
-end;
-
-procedure TfrmXERODemo.lblFileNameDblClick(Sender: TObject);
-begin
-  ExecuteFile('open', lblFileName.Hint, '', ExtractFilePath(lblFileName.Hint),
-    SW_NORMAL);
 end;
 
 procedure TfrmXERODemo.LoadSettings;
@@ -355,46 +446,62 @@ var
 begin
   INIFile := TIniFile.Create(FSettingsFileName);
   try
-    editConsumerKey.Text := INIFile.ReadString('XERO', 'ConsumerKey', '');
-    editConsumerSecret.Text := INIFile.ReadString('XERO', 'ConsumerSecret', '');
-    memoPrivateKey.Lines.Text := INIFile.ReadString('XERO', 'PrivateKey', '');
-    memoPublicKey.Lines.Text := INIFile.ReadString('XERO', 'PublicKey', '');
-    lblFileName.Hint := FSettingsFileName;
-    lblFileName.Caption := ExtractFileName(FSettingsFileName);
+    editClientID.Text := INIFile.ReadString('XERO', 'ClientID', '');
+    editScope.Text := INIFile.ReadString('XERO', 'Scope',
+      FXEROAuthenticatorPKCE.Scope);
   finally
     FreeAndNil(INIFile);
   end;
 end;
 
-procedure TfrmXERODemo.PageControlDataChange(Sender: TObject);
+procedure TfrmXERODemo.PageControlMenuChange(Sender: TObject);
 begin
-  if PageControlData.ActivePage = tabLog then
+  if PageControlMenu.ActivePage = tabLog then
   begin
     btnRefreshLogClick(Sender);
+  end;
+end;
+
+procedure TfrmXERODemo.Post(AURL, AJSON: string);
+var
+  LXEROAPI: TXEROApiJSON;
+  LJSON: string;
+begin
+  LXEROAPI := TXEROApiJSON.Create(nil);
+  try
+    LXEROAPI.XEROAppDetails := FXEROAppDetails;
+    LXEROAPI.TenantId := GetTenant;
+    LXEROAPI.Post(AURL, AJSON, LJSON);
+    memoStoreResponse.Text := LJSON;
+  finally
+    FreeAndNil(LXEROAPI);
+  end;
+end;
+
+procedure TfrmXERODemo.Put(AURL, AJSON: string);
+var
+  LXEROAPI: TXEROApiJSON;
+  LJSON: string;
+begin
+  LXEROAPI := TXEROApiJSON.Create(nil);
+  try
+    LXEROAPI.XEROAppDetails := FXEROAppDetails;
+    LXEROAPI.TenantId := GetTenant;
+    LXEROAPI.Put(AURL, AJSON, LJSON);
+    memoStoreResponse.Text := LJSON;
+  finally
+    FreeAndNil(LXEROAPI);
   end;
 end;
 
 procedure TfrmXERODemo.SaveSettings;
 var
   INIFile: TIniFile;
-  PublicKey, Privatekey: string;
 begin
   INIFile := TIniFile.Create(FSettingsFileName);
   try
-    PublicKey := StringReplace(memoPublicKey.Lines.Text, #13, '',
-      [rfReplaceAll, rfIgnoreCase]);
-    PublicKey := StringReplace(PublicKey, #10, '',
-      [rfReplaceAll, rfIgnoreCase]);
-
-    Privatekey := StringReplace(memoPrivateKey.Lines.Text, #13, '',
-      [rfReplaceAll, rfIgnoreCase]);
-    Privatekey := StringReplace(Privatekey, #10, '',
-      [rfReplaceAll, rfIgnoreCase]);
-
-    INIFile.WriteString('XERO', 'ConsumerKey', editConsumerKey.Text);
-    INIFile.WriteString('XERO', 'ConsumerSecret', editConsumerSecret.Text);
-    INIFile.WriteString('XERO', 'PrivateKey', Privatekey);
-    INIFile.WriteString('XERO', 'PublicKey', PublicKey);
+    INIFile.WriteString('XERO', 'ClientID', editClientID.Text);
+    INIFile.WriteString('XERO', 'Scope', editScope.Text);
   finally
     FreeAndNil(INIFile);
   end;
@@ -408,9 +515,10 @@ begin
   LAPI := TXEROContacts.Create(nil);
   try
     LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
     LData := LAPI.Search(GetPage, GetOrderBy, editContactsContactID.Text,
       editContactsContactNumber.Text, '', cbContactsIncludeArchived.Checked);
-    memoJSON.Text := LData.AsJSON(true);
+    memoJSON.Text := LData.AsJSON(True);
   finally
     FreeAndNil(LAPI);
   end;
@@ -424,10 +532,32 @@ begin
   LAPI := TXEROItems.Create(nil);
   try
     LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
     LData := LAPI.Search(GetPage, GetOrderBy, '');
-    memoJSON.Text := LData.AsJSON(true);
+    memoJSON.Text := LData.AsJSON(True);
   finally
     FreeAndNil(LAPI);
+  end;
+end;
+
+procedure TfrmXERODemo.UpdateTenants;
+var
+  LTenant: TXEROTenant;
+begin
+  if FXEROAuthenticatorPKCE.Authenticated then
+  begin
+    comboTenants.Items.Clear;
+    comboTenants.Items.BeginUpdate;
+    try
+      for LTenant in FXEROAuthenticatorPKCE.Tenants do
+      begin
+        comboTenants.Items.Add(LTenant.TenantId);
+      end;
+    finally
+      comboTenants.Items.EndUpdate;
+      if comboTenants.Items.Count > 0 then
+        comboTenants.ItemIndex := 0;
+    end;
   end;
 end;
 
@@ -439,8 +569,9 @@ begin
   LAPI := TXEROAccounts.Create(nil);
   try
     LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
     LData := LAPI.Search(GetPage, GetOrderBy, '');
-    memoJSON.Text := LData.AsJSON(true);
+    memoJSON.Text := LData.AsJSON(True);
   finally
     FreeAndNil(LAPI);
   end;
@@ -454,8 +585,10 @@ begin
   LAPI := TXEROInvoices.Create(nil);
   try
     LAPI.XEROAppDetails := FXEROAppDetails;
-    LData := LAPI.Search(GetPage, GetOrderBy, '');
-    memoJSON.Text := LData.AsJSON(true);
+    LAPI.TenantId := GetTenant;
+    LData := LAPI.Search(GetPage, GetOrderBy, editInvoicesInvoiceID.Text,
+      editInvoicesInvoiceNumber.Text);
+    memoJSON.Text := LData.AsJSON(True);
   finally
     FreeAndNil(LAPI);
   end;

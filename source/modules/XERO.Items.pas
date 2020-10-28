@@ -4,7 +4,8 @@ interface
 
 uses
   System.SysUtils, DB,
-  Classes, XERO.API, XERO.Types, XERO.API.Response.JSON, XERO.Model, XERO.Response.Model,
+  Classes, XERO.API, XERO.Types, XERO.API.Response.JSON, XERO.Model,
+  XERO.Response.Model, XERO.Request.Model,
   XERO.Item.Model;
 
 type
@@ -18,14 +19,12 @@ type
     property Items: TXMItems read FItems;
   end;
 
+
   TXEROItems = class(TXEROAPI)
   private
-    FXEROResponseJSON: TXEROResponseJSON;
   protected
     function GetAPIURL: string; override;
-    property XEROResponseJSON: TXEROResponseJSON read FXEROResponseJSON;
   public
-    procedure AfterConstruction; override;
     function Search(APage: Integer = 0; AOrderBy: string = '';
       AItemID: string = ''; ACode: string = ''; ALastModified: TDateTime = 0)
       : TXEROItemResponse;
@@ -37,29 +36,32 @@ implementation
 
 function TXEROItems.Search(APage: Integer; AOrderBy, AItemID, ACode: string;
   ALastModified: TDateTime): TXEROItemResponse;
+var
+  LXEROFilter: TXEROFilter;
+  LXEROResponseJSON: TXEROResponseJSON;
 begin
   Result := TXEROItemResponse.Create;
-  ResetFilter;
-  AddGUIDToFilter('ContactID', AItemID);
-  AddToFilter('Code', ACode);
-  if Find(Filter, AOrderBy, APage, ALastModified) then
-  begin
-    if XEROResponseJSON.Result then
+  LXEROFilter := TXEROFilter.Create;
+  LXEROResponseJSON := TXEROResponseJSON.Create(nil);
+  try
+    LXEROFilter.AddGUIDToFilter('ContactID', AItemID);
+    LXEROFilter.AddToFilter('Code', ACode);
+    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified) then
     begin
-      Result.FromJSON(XEROResponseJSON.AsString);
-    end
-    else
-    begin
-      raise EXEROContactException.Create(XEROResponseJSON.ErrorMessage);
+      if LXEROResponseJSON.Result then
+      begin
+        Result.FromJSON(LXEROResponseJSON.AsString);
+      end
+      else
+      begin
+        raise EXEROContactException.Create(LXEROResponseJSON.ErrorMessage);
+      end;
     end;
+  finally
+    FreeAndNil(LXEROFilter);
+    FreeAndNil(LXEROResponseJSON);
   end;
-end;
-
-procedure TXEROItems.AfterConstruction;
-begin
-  inherited;
-  FXEROResponseJSON := TXEROResponseJSON.Create(nil);
-  Response := FXEROResponseJSON;
 end;
 
 function TXEROItems.GetAPIURL: string;

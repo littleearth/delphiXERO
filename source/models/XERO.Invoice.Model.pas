@@ -6,11 +6,17 @@ uses
   Classes, SysUtils, XERO.Model, XERO.Contact.Model;
 
 type
+
+  TXEROInvoiceStatus = (isUnspecified, isDraft, isSubmitted, isDeleted,
+    isAuthorised, isPaid, isVoided);
+
+  TXEROInvoiceType = (itUnspecified, itAccPay, itAccRec);
+
   TXMInvoiceLineItem = class(TXeroModel)
   private
     FAccountCode: string;
-    FLineAmount: string;
-    FTaxAmount: string;
+    FLineAmount: single;
+    FTaxAmount: single;
     FTaxType: string;
     FUnitAmount: single;
     FQuantity: single;
@@ -22,10 +28,10 @@ type
     procedure SetDescription(const Value: string);
     procedure SetDiscountRate(const Value: string);
     procedure SetItemCode(const Value: string);
-    procedure SetLineAmount(const Value: string);
+    procedure SetLineAmount(const Value: single);
     procedure SetLineItemID(const Value: string);
     procedure SetQuantity(const Value: single);
-    procedure SetTaxAmount(const Value: string);
+    procedure SetTaxAmount(const Value: single);
     procedure SetTaxType(const Value: string);
     procedure SetUnitAmount(const Value: single);
   public
@@ -36,8 +42,8 @@ type
     property AccountCode: string read FAccountCode write SetAccountCode;
     property LineItemID: string read FLineItemID write SetLineItemID;
     property TaxType: string read FTaxType write SetTaxType;
-    property TaxAmount: string read FTaxAmount write SetTaxAmount;
-    property LineAmount: string read FLineAmount write SetLineAmount;
+    property TaxAmount: single read FTaxAmount write SetTaxAmount;
+    property LineAmount: single read FLineAmount write SetLineAmount;
     property DiscountRate: string read FDiscountRate write SetDiscountRate;
     // property Tracking;
   end;
@@ -50,7 +56,7 @@ type
     FXMContact: TXMContact;
     [XEROModelManagedAttribute]
     FXMInvoiceLineItems: TXMInvoiceLineItems;
-    FDate: string;
+    FDate: TDate;
     FAmountPaid: single;
     FSubTotal: single;
     FAmountDue: single;
@@ -59,12 +65,12 @@ type
     FStatus: string;
     FInvoiceType: string;
     FLineAmountTypes: string;
-    FDueDate: string;
+    FDueDate: TDate;
     FReference: string;
     procedure SetAmountDue(const Value: single);
     procedure SetAmountPaid(const Value: single);
-    procedure Sestring(const Value: string);
-    procedure SetDueDate(const Value: string);
+    procedure SetDate(const Value: TDate);
+    procedure SetDueDate(const Value: TDate);
     procedure SetInvoiceID(const Value: string);
     procedure SetInvoiceNumber(const Value: string);
     procedure SetInvoiceType(const Value: string);
@@ -73,11 +79,15 @@ type
     procedure SetStatus(const Value: string);
     procedure SetSubTotal(const Value: single);
   public
+    class function GetInvoiceStatus(AInvoiceStatus: TXEROInvoiceStatus)
+      : string; static;
+    class function GetInvoiceType(AInvoiceType: TXEROInvoiceType)
+      : string; static;
     [XEROModelJSONPropertyNameAttribute('Type')]
     property InvoiceType: string read FInvoiceType write SetInvoiceType;
     property Contact: TXMContact read FXMContact;
-    property Date: string read FDate write Sestring;
-    property DueDate: string read FDueDate write SetDueDate;
+    property Date: TDate read FDate write SetDate;
+    property DueDate: TDate read FDueDate write SetDueDate;
     property Status: string read FStatus write SetStatus;
     property LineAmountTypes: string read FLineAmountTypes
       write SetLineAmountTypes;
@@ -116,7 +126,7 @@ begin
   FItemCode := Value;
 end;
 
-procedure TXMInvoiceLineItem.SetLineAmount(const Value: string);
+procedure TXMInvoiceLineItem.SetLineAmount(const Value: single);
 begin
   FLineAmount := Value;
 end;
@@ -131,7 +141,7 @@ begin
   FQuantity := Value;
 end;
 
-procedure TXMInvoiceLineItem.SetTaxAmount(const Value: string);
+procedure TXMInvoiceLineItem.SetTaxAmount(const Value: single);
 begin
   FTaxAmount := Value;
 end;
@@ -158,12 +168,12 @@ begin
   FAmountPaid := Value;
 end;
 
-procedure TXMInvoice.Sestring(const Value: string);
+procedure TXMInvoice.SetDate(const Value: TDate);
 begin
   FDate := Value;
 end;
 
-procedure TXMInvoice.SetDueDate(const Value: string);
+procedure TXMInvoice.SetDueDate(const Value: TDate);
 begin
   FDueDate := Value;
 end;
@@ -201,6 +211,40 @@ end;
 procedure TXMInvoice.SetSubTotal(const Value: single);
 begin
   FSubTotal := Value;
+end;
+
+class function TXMInvoice.GetInvoiceStatus(AInvoiceStatus
+  : TXEROInvoiceStatus): string;
+begin
+  case AInvoiceStatus of
+    isUnspecified:
+      Result := '';
+    isDraft:
+      Result := 'DRAFT';
+    isSubmitted:
+      Result := 'SUBMITTED';
+    isDeleted:
+      Result := 'DELETED';
+    isAuthorised:
+      Result := 'AUTHORISED';
+    isPaid:
+      Result := 'PAID';
+    isVoided:
+      Result := 'VOIDED';
+  end;
+end;
+
+class function TXMInvoice.GetInvoiceType(AInvoiceType
+  : TXEROInvoiceType): string;
+begin
+  case AInvoiceType of
+    itUnspecified:
+      Result := '';
+    itAccPay:
+      Result := 'ACCPAY';
+    itAccRec:
+      Result := 'ACCREC';
+  end;
 end;
 
 end.

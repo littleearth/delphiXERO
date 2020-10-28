@@ -1,0 +1,68 @@
+package XEROAPI;
+
+{$R *.res}
+{$IFDEF IMPLICITBUILDING This IFDEF should not be used by users}
+{$ALIGN 8}
+{$ASSERTIONS ON}
+{$BOOLEVAL OFF}
+{$DEBUGINFO OFF}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS OFF}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO OFF}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES OFF}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST OFF}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DEFINE RELEASE}
+{$ENDIF IMPLICITBUILDING}
+{$DESCRIPTION 'Little Earth Solutions Xero API'}
+{$LIBSUFFIX 'Sydney'}
+{$RUNONLY}
+{$IMPLICITBUILD ON}
+
+requires
+  rtl,
+  IndySystem,
+  IndyProtocols,
+  IndyCore,
+  dbrtl,
+  dsnap,
+  xmlrtl,
+  inet,
+  soaprtl,
+  vcl,
+  RESTComponents;
+
+contains
+  XERO.API.ClassInterface in '..\..\source\XERO.API.ClassInterface.pas',
+  XERO.API.JSON in '..\..\source\XERO.API.JSON.pas',
+  XERO.API in '..\..\source\XERO.API.pas',
+  XERO.API.Response.JSON in '..\..\source\XERO.API.Response.JSON.pas',
+  XERO.API.Response.Text in '..\..\source\XERO.API.Response.Text.pas',
+  XERO.API.Response.XML in '..\..\source\XERO.API.Response.XML.pas',
+  XERO.Authenticator.PKCE in '..\..\source\XERO.Authenticator.PKCE.pas',
+  XERO.Constants in '..\..\source\XERO.Constants.pas',
+  XERO.HTTPServer in '..\..\source\XERO.HTTPServer.pas',
+  XERO.ISO8601 in '..\..\source\XERO.ISO8601.pas',
+  XERO.JSONSAX in '..\..\source\XERO.JSONSAX.pas',
+  XERO.Log.Basic in '..\..\source\XERO.Log.Basic.pas',
+  XERO.Log in '..\..\source\XERO.Log.pas',
+  XERO.MiscUtil in '..\..\source\XERO.MiscUtil.pas',
+  XERO.PKCE in '..\..\source\XERO.PKCE.pas',
+  XERO.Types in '..\..\source\XERO.Types.pas',
+  XERO.Utils in '..\..\source\XERO.Utils.pas',
+  XERO.VarUtil in '..\..\source\XERO.VarUtil.pas',
+  XERO.XMLParser in '..\..\source\XERO.XMLParser.pas';
+
+end.
+

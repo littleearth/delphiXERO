@@ -32,6 +32,8 @@
 
 
   History: 01/12/2014 - First Release.
+  28/10/2020 - OAuth2 Support
+
 
   ----------------------------------------------------------------------------- }
 
@@ -41,104 +43,157 @@ interface
 
 uses
   // System
-  System.SysUtils, System.Classes, System.Variants,
+  System.SysUtils, System.Classes, System.Variants, System.Generics.Collections,
 
   // Indy
   IdHTTP, IdIOHandler,
 
   // XERO
-  XERO.CipherRSA, XERO.Types;
+  XERO.Types;
 
 type
   TOnLog = procedure(ASender: TObject; AMessage: string) of object;
 
-type
+  TXEROAuthenticatorBase = class;
+
   TXEROAppDetails = class(TXEROComponent)
   private
-    FOAuthSignatureMethod: TOAuthSignatureMethod;
     FAppName: string;
-    FPrivateKey: TStringList;
-    FPublicKey: TStringList;
-    FConsumerKey: string;
-    FConsumerSecret: string;
+    FClientID: string;
+    FXEROAuthenticator: TXEROAuthenticatorBase;
+    procedure SetClientID(const Value: string);
+    procedure SetXEROAuthenticatorBase(const Value: TXEROAuthenticatorBase);
   protected
-    function GetPivateKey: TStrings;
-    function GetPublicKey: TStrings;
-    procedure SetPrivateKey(AStrings: TStrings);
-    procedure SetPublicKey(AStrings: TStrings);
   public
-    constructor Create(AOwner: TComponent); override;
-    destructor Destroy; override;
     function ValidateSettings: Boolean; virtual;
   published
     property AppName: string read FAppName write FAppName;
-    property PrivateKey: TStrings read GetPivateKey write SetPrivateKey;
-    property PublicKey: TStrings read GetPublicKey write SetPublicKey;
-    property ConsumerKey: string read FConsumerKey write FConsumerKey;
-    property ConsumerSecret: string read FConsumerSecret write FConsumerSecret;
-    property OAuthSignatureMethod: TOAuthSignatureMethod
-      read FOAuthSignatureMethod write FOAuthSignatureMethod;
+    property ClientID: string read FClientID write SetClientID;
+    property XEROAuthenticator: TXEROAuthenticatorBase read FXEROAuthenticator
+      write SetXEROAuthenticatorBase;
   end;
 
-type
-  TXEROAPIBase = class(TXEROComponent)
+  TXEROHTTPClientBase = class(TXEROComponent)
   private
     FXEROAppDetails: TXEROAppDetails;
     FSSLHandler: TIdIOHandler;
     FHTTPClient: TIdHTTP;
   protected
-    function NormalisedURL(const AURL: string): string;
-    function GetGUIDString: string;
-    function OAuthBaseString(const aMethod: string; const AURL: string;
-      const AParams: TStrings): string;
-    function OAuthEncode(const aString: string): string;
-    function OAuthSignature(const aBaseString: string;
-      const aKey: TRSAPrivateKey): string; overload;
-    function OAuthSignature(const aBaseString: string; const aKey: string)
-      : string; overload;
-    function OAuthSignature(const aBaseString: string;
-      const aConsumerSecret: string; const aTokenSecret: string)
-      : string; overload;
-    function OAuthTimeStamp: string;
-    procedure OAuthSignRequest(const aRequest: TIdHTTPRequest;
-      const aMethod: string; const AURL: string; const AParams: TStrings;
-      const AConsumerKey: string; const AToken: string;
-      const aConsumerSecret: string; const aTokenSecret: string); overload;
-    procedure OAuthSignRequest(const aRequest: TIdHTTPRequest;
-      const aMethod: string; const AURL: string; const AParams: TStrings;
-      const AConsumerKey: string; const AToken: string;
-      const APrivateKey: string); overload;
-    procedure ValidateSettings; virtual;
-
-    function Get(AURL: string; AParams: string; var AResponse: string;
-      ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML)
-      : Boolean; overload;
-
-    function Get(AURL: string; AParams: TStrings; AResponse: TStream;
-      var ResponseCode: integer; var ErrorDetail: string;
-      ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML)
-      : Boolean; overload;
-
-    function Post(AURL: String; ASource: TStrings; AResponse: TStream;
-      var ResponseCode: integer; var ErrorDetail: String;
-      AResponseType: TResponseType = rtXML): Boolean;
-
-    procedure SetXEROAppDetails(AXEROAppDetails: TXEROAppDetails);
-    function GetXEROAppDetails: TXEROAppDetails;
-
+    procedure SetBearerHeader(AAccessToken: string);
     function HTTPClient: TIdHTTP;
-  public
-    constructor Create(AOwner: TComponent); override;
-
-    Procedure BeforeDestruction; override;
-
-  published
+    function GetXEROAppDetails: TXEROAppDetails;
+    procedure SetXEROAppDetails(const Value: TXEROAppDetails);
+    function GetXEROAuthenticator: TXEROAuthenticatorBase;
     property XEROAppDetails: TXEROAppDetails read GetXEROAppDetails
       write SetXEROAppDetails;
   end;
 
-type
-  TXEROResponseBase = class(TComponent)
+  TXEROAccessToken = class(TXEROComponent)
+  private
+    FrefreshToken: string;
+    FidToken: string;
+    FtokenType: string;
+    FaccessToken: string;
+    Fscope: string;
+    FexpiresIn: integer;
+    FlastRefresh: TDateTime;
+    procedure SetaccessToken(const Value: string);
+    procedure SetexpiresIn(const Value: integer);
+    procedure SetidToken(const Value: string);
+    procedure SetrefreshToken(const Value: string);
+    procedure Setscope(const Value: string);
+    procedure SettokenType(const Value: string);
+    procedure SetlastRefresh(const Value: TDateTime);
+  public
+    constructor Create; reintroduce;
+    procedure FromJSON(AJSON: string);
+  published
+    function IsValid: Boolean;
+    function ExpiryDateTime: TDateTime;
+    property IdToken: string read FidToken write SetidToken;
+    property AccessToken: string read FaccessToken write SetaccessToken;
+    property ExpiresIn: integer read FexpiresIn write SetexpiresIn;
+    property TokenType: string read FtokenType write SettokenType;
+    property RefreshToken: string read FrefreshToken write SetrefreshToken;
+    property Scope: string read Fscope write Setscope;
+    property LastRefresh: TDateTime read FlastRefresh write SetlastRefresh;
+  end;
+
+  TXEROTenant = class(TXEROComponent)
+  private
+    FTenantId: string;
+    FupdatedDateUtc: string;
+    FAuthEventId: string;
+    FID: string;
+    FcreatedDateUtc: string;
+    FtenantName: string;
+    FTenantType: string;
+    procedure SetAuthEventId(const Value: string);
+    procedure SetcreatedDateUtc(const Value: string);
+    procedure SetID(const Value: string);
+    procedure SetTenantId(const Value: string);
+    procedure SettenantName(const Value: string);
+    procedure SetupdatedDateUtc(const Value: string);
+    procedure SetTenantType(const Value: string);
+  public
+    constructor Create; reintroduce;
+    procedure FromJSON(AJSON: string);
+  published
+    property ID: string read FID write SetID;
+    property AuthEventId: string read FAuthEventId write SetAuthEventId;
+    property TenantId: string read FTenantId write SetTenantId;
+    property TenantType: string read FTenantType write SetTenantType;
+    property TenantName: string read FtenantName write SettenantName;
+    property CreatedDateUtc: string read FcreatedDateUtc
+      write SetcreatedDateUtc;
+    property UpdatedDateUtc: string read FupdatedDateUtc
+      write SetupdatedDateUtc;
+  end;
+
+  TXEROTenants = class(TObjectList<TXEROTenant>)
+  public
+    procedure FromJSON(AJSON: string);
+  end;
+
+  TXEROOnAuthenticationComplete = procedure(ASender: TObject; ASuccess: Boolean)
+    of object;
+
+  TXEROAuthenticatorBase = class(TXEROHTTPClientBase)
+  private
+    FXEROAccessToken: TXEROAccessToken;
+    FXEROTenants: TXEROTenants;
+    FThreadTimer: TThreadTimer;
+    FOnAuthenticationComplete: TXEROOnAuthenticationComplete;
+    function GetAccessToken: TXEROAccessToken;
+    function GetExpiryDate: TDateTime;
+    procedure SetOnAuthenticationComplete(const Value
+      : TXEROOnAuthenticationComplete);
+    function GetXEROTenants: TXEROTenants;
+    procedure CheckAccessTokenRefresh;
+  protected
+    procedure Authenticate; virtual; abstract;
+    procedure RefreshAuthentication; virtual;
+    function UpdateTenants(var AMessage: string): Boolean; virtual;
+    function GetAuthenticated: Boolean; virtual;
+    procedure SetDefaultProperties; virtual;
+    procedure InternalTimerEvent; virtual;
+    function RefreshAccessToken(var AMessage: string): Boolean; virtual;
+  public
+    constructor Create(AOwner: TComponent); reintroduce;
+    destructor Destroy; override;
+    procedure Login;
+    procedure Refresh;
+    procedure OnThreadTimer(ASender: TObject);
+    property AccessToken: TXEROAccessToken read GetAccessToken;
+    property Tenants: TXEROTenants read GetXEROTenants;
+  published
+    property Authenticated: Boolean read GetAuthenticated;
+    property Expirydate: TDateTime read GetExpiryDate;
+    property OnAuthenticationComplete: TXEROOnAuthenticationComplete
+      read FOnAuthenticationComplete write SetOnAuthenticationComplete;
+  end;
+
+  TXEROResponseBase = class(TXEROHTTPClientBase)
   private
     FResponse: TMemoryStream;
     FResponseCode: integer;
@@ -167,34 +222,112 @@ type
     property ErrorMessage: string read FErrorMessage;
   end;
 
-type
   TXEROResponseBaseClass = class of TXEROResponseBase;
 
-type
-  TXEROAPI = class(TXEROAPIBase)
+  TXEROFilter = class(TXEROObject)
   private
-    FXEROResponseBase: TXEROResponseBase;
     FFilter: string;
-    procedure SetFilter(const Value: string);
-
   protected
-    function GetAPIURL: string; virtual; abstract;
-    procedure ValidateSettings; override;
     function GetDateTimeFilterString(ADateTime: TDateTime): string;
-    procedure SetXEROResponseBase(AXEROResponseBase: TXEROResponseBase);
-    function GetXEROResponseBase: TXEROResponseBase;
+  public
     procedure ResetFilter;
     procedure AddToFilter(AFieldName, AData: string;
-      AQuoteData: Boolean = true);
+      AQuoteData: Boolean = true); overload;
+    procedure AddToFilter(AFieldName: string; AData: integer;
+      AQuoteData: Boolean = false)overload;
+    procedure AddToFilter(AFieldName: string; AData: double;
+      AQuoteData: Boolean = false)overload;
+    procedure AddToFilter(AFieldName: string; AData: TDate;
+      AQuoteData: Boolean = false)overload;
     procedure AddGUIDToFilter(AFieldName, AData: string);
+    function Text: string;
+  end;
+
+  TXEROAPIBase = class(TXEROHTTPClientBase)
+  private
+    FTenantId: string;
+    procedure SetTenantId(const Value: string);
+  protected
+    function NormalisedURL(const AURL: string): string;
+    function GetGUIDString: string;
+    // function OAuthTimeStamp: string;
+    procedure ValidateSettings; virtual;
+    function StreamToString(AStream: TStream): string;
+    procedure StringToStream(AStream: TStream; AValue: string);
+    function GetErrorResponse(AResponseCode: integer; AErrorDetail: string;
+      AResponse: TStream = nil; AResponseType: TResponseType = rtXML): string;
+    function ParamsToURL(AURL: string; AParams: TStrings = nil): string;
+
+    procedure SetHTTPHeader;
+
+    function Get(AURL: string; AParams: string; var AResponse: string;
+      ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML)
+      : Boolean; overload;
+    function Get(AURL: string; AParams: TStrings; AResponse: TStream;
+      var ResponseCode: integer; var ErrorDetail: string;
+      ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML)
+      : Boolean; overload;
+
+    function Post(AURL: String; AParams: TStrings; ARequest: TStream;
+      AResponse: TStream; var ResponseCode: integer; var ErrorDetail: String;
+      AResponseType: TResponseType = rtXML): Boolean; overload;
+    function Post(AURL: String; AParams: string; ARequest: string;
+      var AResponse: string; AResponseType: TResponseType = rtXML)
+      : Boolean; overload;
+    function Post<T: TXEROResponseBase>(AURL: String; ARequest: string;
+      AResponse: T; AParams: string = ''): Boolean; overload;
+
+    function Put(AURL: String; AParams: TStrings; ARequest: TStream;
+      AResponse: TStream; var ResponseCode: integer; var ErrorDetail: String;
+      AResponseType: TResponseType = rtXML): Boolean; overload;
+    function Put(AURL: String; AParams: string; ARequest: string;
+      var AResponse: string; AResponseType: TResponseType = rtXML)
+      : Boolean; overload;
+    function Put<T: TXEROResponseBase>(AURL: String; ARequest: string;
+      AResponse: T; AParams: string = ''): Boolean; overload;
+
+    function Delete(AURL: String; AResponse: TStream; var ResponseCode: integer;
+      var ErrorDetail: String; AResponseType: TResponseType = rtXML)
+      : Boolean; overload;
+    function Delete(AURL: String; var AResponse: string;
+      AResponseType: TResponseType = rtXML): Boolean; overload;
+    function Delete<T: TXEROResponseBase>(AURL: String; AResponse: T)
+      : Boolean; overload;
+
+    function GetFilterURL(AURL, AFilter, AOrderBy: string;
+      APage: integer): string;
+
+    function Find<T: TXEROResponseBase>(AURL: string; AResponse: T;
+      AFilter: string = ''; AOrderBy: string = ''; APage: integer = 0;
+      ALastModified: TDateTime = 0): Boolean;
+
   public
-    function Find(AFilter: string = ''; AOrderBy: string = '';
-      APage: integer = 0; ALastModified: TDateTime = 0): Boolean; overload;
+    constructor Create(AOwner: TComponent); override;
+    destructor Destroy; override;
 
   published
-    property Response: TXEROResponseBase read GetXEROResponseBase
-      write SetXEROResponseBase;
-    property Filter: string read FFilter write SetFilter;
+    property XEROAppDetails;
+    property XEROAuthenticator: TXEROAuthenticatorBase
+      read GetXEROAuthenticator;
+    property TenantId: string read FTenantId write SetTenantId;
+  end;
+
+  TXEROAPI = class(TXEROAPIBase)
+  private
+  protected
+    function GetAPIURL: string; virtual; abstract;
+    function Find<T: TXEROResponseBase>(AResponse: T; AFilter: string = '';
+      AOrderBy: string = ''; APage: integer = 0; ALastModified: TDateTime = 0)
+      : Boolean; reintroduce;
+    function Post<T: TXEROResponseBase>(ARequest: string; AResponse: T;
+      AParams: string = ''): Boolean; reintroduce;
+    function Put<T: TXEROResponseBase>(ARequest: string; AResponse: T;
+      AParams: string = ''): Boolean; reintroduce;
+    function Delete<T: TXEROResponseBase>(AResponse: T; AParams: string = '')
+      : Boolean; reintroduce;
+  public
+  published
+
   end;
 
   TXDataOp = (xdoEqual, xdoLess, xdoGreater, xdoLessEqual, xdoGreaterEqual,
@@ -261,75 +394,42 @@ implementation
 
 uses
   // System
-  Windows, System.DateUtils, System.StrUtils,
+  Windows, System.DateUtils, System.StrUtils, JSON,
 
   // Indy
-  IdGlobal, IdHMACSHA1, IdURI, IdSSL, IdSSLOpenSSL,
-  IdBaseComponent, IdComponent, IdTCPConnection,
-  IdTCPClient, IdIOHandlerSocket, IdIOHandlerStack,
+  IdGlobal, IdHMACSHA1, IdSSL, IdSSLOpenSSL,
+  IdBaseComponent,
+  IdIOHandlerStack,
 
   // XERO
-  XERO.HugeInt, XERO.Base64, XERO.RSAUtils, XERO.Utils,
-  XERO.MiscUtil, XERO.VarUtil;
+  XERO.Utils,  XERO.VarUtil;
 
 // TXEROAppDetails
 
-function TXEROAppDetails.GetPivateKey: TStrings;
+procedure TXEROAppDetails.SetClientID(const Value: string);
 begin
-  Result := FPrivateKey;
+  FClientID := Value;
 end;
 
-function TXEROAppDetails.GetPublicKey: TStrings;
+procedure TXEROAppDetails.SetXEROAuthenticatorBase
+  (const Value: TXEROAuthenticatorBase);
 begin
-  Result := FPublicKey;
-end;
-
-procedure TXEROAppDetails.SetPrivateKey(AStrings: TStrings);
-begin
-  FPrivateKey.Assign(AStrings);
-end;
-
-procedure TXEROAppDetails.SetPublicKey(AStrings: TStrings);
-begin
-  FPublicKey.Assign(AStrings);
-end;
-
-constructor TXEROAppDetails.Create(AOwner: TComponent);
-begin
-  inherited Create(AOwner);
-  FPrivateKey := TStringList.Create;
-  FPublicKey := TStringList.Create;
-  FOAuthSignatureMethod := oaRSA;
-end;
-
-destructor TXEROAppDetails.Destroy;
-begin
-  FreeAndNil(FPrivateKey);
-  FreeAndNil(FPublicKey);
-  inherited Destroy;
+  FXEROAuthenticator := Value;
+  if Assigned(FXEROAuthenticator) then
+    FXEROAuthenticator.XEROAppDetails := Self;
 end;
 
 function TXEROAppDetails.ValidateSettings: Boolean;
 begin
   Result := true;
   if Result then
-    Result := not IsEmptyString(FPrivateKey.Text);
+    Result := not IsEmptyString(FClientID);
   if Result then
-    Result := not IsEmptyString(FConsumerKey);
-  if Result then
-    Result := not IsEmptyString(FConsumerSecret);
+    Result := Assigned(FXEROAuthenticator);
 end;
 
 // TXEROAPIBase
 //
-Procedure TXEROAPIBase.BeforeDestruction;
-begin
-  if assigned(FHTTPClient) then
-    FHTTPClient.IOHandler := nil;
-  FreeAndNil(FSSLHandler);
-  FreeAndNil(FHTTPClient);
-  inherited;
-end;
 
 function TXEROAPIBase.NormalisedURL(const AURL: string): string;
 begin
@@ -353,388 +453,295 @@ begin
 end;
 
 { - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-function TXEROAPIBase.OAuthBaseString(const aMethod: string; const AURL: string;
-  const AParams: TStrings): string;
-
-var
-  i: integer;
-  params: TStringList;
-  s: string;
-  url: string;
-  par: string;
-  pars: string;
-begin
-  params := TStringList.Create;
-  try
-    // First take any specified params
-    params.Assign(AParams);
-
-    // Now identify any query parameters that may be encoded in the URL
-    url := String(UTF8Encode(AURL));
-    i := Pos('?', url);
-    if i <> 0 then
-    begin
-      pars := Copy(url, i + 1, Length(url) - i);
-      SetLength(url, i - 1);
-
-      while (pars <> '') do
-      begin
-        i := Pos('&', pars);
-        if (i > 0) then
-        begin
-          par := Copy(pars, 1, i - 1);
-          Delete(pars, 1, i);
-        end
-        else
-        begin
-          par := pars;
-          pars := '';
-        end;
-
-        // JTS #1770
-        //
-        // If the param is a name/value pair (contains an '=') then
-        // we add it then URLDecode() the parameter VALUE.
-        //
-        // This was discovered as required when testing against Xero, when
-        // we found that the URL encoding of "where" filters required that
-        // the URL encoded filter condition is required to be UN-encoded
-        // in the parameter list for the purposes of OAuth base string:
-        //
-        // <xero url>/Invoices?where=Type%3d%3d%22ACCREC%22
-        //
-        // Contains the parameter:
-        //
-        // where      Type=="ACCREC"
-        //
-        i := Pos('=', par);
-        if (i > 0) then
-        begin
-          s := params.Names[params.Add(par)];
-          params.Values[s] := URLDecode(params.Values[s]);
-        end
-        else
-          params.Add(par + '=');
-      end;
-    end;
-
-    // Now sort all the params
-    params.Sort;
-
-    // Now compose the OAuth Base String:  METHOD&URL&PARAMS
-    s := '';
-    for i := 0 to Pred(params.Count) do
-      s := s + OAuthEncode(String(UTF8Encode(params.Names[i]))) + '=' +
-        OAuthEncode(String(UTF8Encode(params.ValueFromIndex[i]))) + '&';
-
-    SetLength(s, Length(s) - 1);
-
-    Result := aMethod + '&' + OAuthEncode(url) + '&' + OAuthEncode(s);
-
-  finally
-    params.Free;
-  end;
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-function TXEROAPIBase.OAuthEncode(const aString: string): string;
-var
-  i: integer;
-begin
-  Result := '';
-
-  for i := 1 to Length(aString) do
-    if ANSIChar(aString[i]) in ['0' .. '9', 'a' .. 'z', 'A' .. 'Z', '_', '-',
-      '.', '~'] then
-      Result := Result + aString[i]
-    else
-      Result := Result + '%' + IntToHex(Byte(aString[i]), 2);
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-function TXEROAPIBase.OAuthSignature(const aBaseString: string;
-  const aKey: TRSAPrivateKey): string;
-var
-  key: TRSAPublicKey;
-begin
-  RSAPublicKeyFromPrivate(aKey, key);
-  try
-    Result := String(RSAPKCS1v15AsBase64(aBaseString, key));
-  finally
-    RSAPublicKeyFinalise(key);
-  end;
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-function TXEROAPIBase.OAuthSignature(const aBaseString: string;
-  const aKey: string): string;
-var
-  key: TRSAPrivateKey;
-begin
-
-  RSAReadASN1PrivateKey(AnsiString(aKey), key);
-  try
-    Result := OAuthSignature(aBaseString, key);
-
-  finally
-    RSAPrivateKeyFinalise(key);
-  end;
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-function TXEROAPIBase.OAuthSignature(const aBaseString: string;
-  const aConsumerSecret: string; const aTokenSecret: string): string;
-var
-  i: integer;
-  key: string;
-  hmac: TIdHMACSHA1;
-  hash: TIdBytes;
-begin
-  key := String(UTF8Encode(aConsumerSecret + '&' + aTokenSecret));
-
-  hmac := TIdHMACSHA1.Create;
-  try
-    hmac.key := ToBytes(key);
-    hash := hmac.HashValue(ToBytes(aBaseString));
-
-    SetLength(Result, Length(hash) * 2);
-    i := XERO.Base64.Base64Encode(@hash[0], @Result[1], Length(hash));
-    SetLength(Result, i);
-
-  finally
-    hmac.Free;
-  end;
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-function TXEROAPIBase.OAuthTimeStamp: string;
-const
-  UNIX_BASE = 25569.0;
-var
-  dt: TDateTime;
-  ts: integer;
-begin
-  dt := TTimeZone.Local.ToUniversaltime(now);
-  ts := Round((dt - UNIX_BASE) * 86400);
-  Result := IntToStr(ts);
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-procedure TXEROAPIBase.OAuthSignRequest(const aRequest: TIdHTTPRequest;
-  const aMethod: string; const AURL: string; const AParams: TStrings;
-  const AConsumerKey: string; const AToken: string;
-  const aConsumerSecret: string; const aTokenSecret: string);
-var
-  i: integer;
-  s: string;
-  sig: string;
-  timestamp: string;
-  nonce: string;
-  params: TStringList;
-  url: string;
-begin
-  // Generate OAuth TIMESTAMP and NONCE
-
-  timestamp := OAuthTimeStamp;
-  nonce := GetGUIDString;
-
-  Delete(nonce, 1, 1);
-  SetLength(nonce, Length(nonce) - 1);
-  nonce := StringReplace(nonce, '-', '', [rfReplaceAll]);
-
-  params := TStringList.Create;
-  try
-    // Combine specified parameters and the OAuth headers
-
-    if assigned(AParams) then
-      params.Assign(AParams);
-
-    params.Values['oauth_nonce'] := nonce;
-    params.Values['oauth_timestamp'] := timestamp;
-    params.Values['oauth_signature_method'] := 'HMAC-SHA1';
-    params.Values['oauth_version'] := '1.0';
-
-    if (AConsumerKey <> '') then
-      params.Values['oauth_consumer_key'] := AConsumerKey
-    else if params.IndexOfName('oauth_consumer_key') <> -1 then
-      params.Delete(params.IndexOfName('oauth_consumer_key'));
-
-    if (AToken <> '') then
-      params.Values['oauth_token'] := AToken
-    else if params.IndexOfName('oauth_token') <> -1 then
-      params.Delete(params.IndexOfName('oauth_token'));
-
-    // Derive and sign the base string for the specified, Method, URL and Combined Params
-
-    url := NormalisedURL(AURL);
-    s := OAuthBaseString(aMethod, url, params);
-    sig := OAuthSignature(s, aConsumerSecret, aTokenSecret);
-
-    // Remove any params from the URL that we will include as the REALM in the Authorization header
-
-    i := Pos('?', url);
-    if i <> 0 then
-      SetLength(url, i - 1);
-
-    // Now add a custom Authorization Header with the OAuth credentials
-
-    s := Format('OAuth realm="%s", ' + 'oauth_nonce="%s", ' +
-      'oauth_timestamp="%s", ' + 'oauth_signature_method="HMAC-SHA1", ' +
-      'oauth_version="1.0"', [url, nonce, timestamp]);
-
-    if AConsumerKey <> '' then
-      s := s + Format(', oauth_consumer_key="%s"', [OAuthEncode(AConsumerKey)]);
-
-    if AToken <> '' then
-      s := s + Format(', oauth_token="%s"', [OAuthEncode(AToken)]);
-
-    s := s + Format(', oauth_signature="%s"', [OAuthEncode(sig)]);
-
-    aRequest.CustomHeaders.Values['Authorization'] := s;
-
-  finally
-    params.Free;
-  end;
-end;
-
-{ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - }
-procedure TXEROAPIBase.OAuthSignRequest(const aRequest: TIdHTTPRequest;
-  const aMethod: string; const AURL: string; const AParams: TStrings;
-  const AConsumerKey: string; const AToken: string; const APrivateKey: string);
-var
-  i: integer;
-  s: string;
-  timestamp: string;
-  nonce: string;
-  params: TStringList;
-  url: string;
-  LPrivateKey: string;
-begin
-  // Generate OAuth TIMESTAMP and NONCE
-
-  timestamp := OAuthTimeStamp;
-  nonce := GetGUIDString;
-  LPrivateKey := StripCRLLF(APrivateKey);
-
-  Delete(nonce, 1, 1);
-  SetLength(nonce, Length(nonce) - 1);
-  nonce := StringReplace(nonce, '-', '', [rfReplaceAll]);
-
-  params := TStringList.Create;
-  try
-    // Combine specified parameters and the OAuth headers
-
-    if assigned(AParams) then
-      params.Assign(AParams);
-
-    params.Values['oauth_consumer_key'] := AConsumerKey;
-    params.Values['oauth_token'] := AToken;
-    params.Values['oauth_nonce'] := nonce;
-    params.Values['oauth_timestamp'] := timestamp;
-    params.Values['oauth_signature_method'] := 'RSA-SHA1';
-    params.Values['oauth_version'] := '1.0';
-    // Derive and sign the base string for the specified, Method, URL and Combined Params
-
-    url := NormalisedURL(AURL);
-
-    s := OAuthBaseString(aMethod, url, params);
-
-    s := OAuthSignature(s, LPrivateKey);
-
-    // Remove any params from the URL that we will include as the REALM in the Authorization header
-
-    i := Pos('?', url);
-    if i <> 0 then
-      SetLength(url, i - 1);
-
-    // Now add a custom Authorization Header with the OAuth credentials
-
-    aRequest.CustomHeaders.Values['Authorization'] :=
-      Format('OAuth realm="%s", ' + 'oauth_consumer_key="%s", ' +
-      'oauth_token="%s", ' + 'oauth_nonce="%s", ' + 'oauth_timestamp="%s", ' +
-      'oauth_signature_method="RSA-SHA1", ' + 'oauth_version="1.0", ' +
-      'oauth_signature="%s"', [url, OAuthEncode(AConsumerKey),
-      OAuthEncode(AToken), nonce, timestamp, OAuthEncode(s)]);
-
-  finally
-    params.Free;
-  end;
-end;
+// function TXEROAPIBase.OAuthTimeStamp: string;
+// const
+// UNIX_BASE = 25569.0;
+// var
+// dt: TDateTime;
+// ts: integer;
+// begin
+// dt := TTimeZone.Local.ToUniversaltime(now);
+// ts := Round((dt - UNIX_BASE) * 86400);
+// Result := IntToStr(ts);
+// end;
 
 constructor TXEROAPIBase.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
 end;
 
-function TXEROAPIBase.HTTPClient: TIdHTTP;
+function TXEROAPIBase.Delete(AURL: String; var AResponse: string;
+  AResponseType: TResponseType): Boolean;
 var
-  handler: TIdSSLIOHandlerSocketOpenSSL;
+  LResponseStream: TStringStream;
+  LParams: TStringList;
+  LResponseCode: integer;
+  LErrorDetail: string;
 begin
-  if not assigned(FHTTPClient) then
-    FHTTPClient := TIdHTTP.Create(Self);
-  if not assigned(FSSLHandler) then
-  begin
-    handler := TIdSSLIOHandlerSocketOpenSSL.Create(Self);
-    FSSLHandler := handler;
-    handler.SSLOptions.Method := sslvTLSv1_2;
-    FHTTPClient.IOHandler := FSSLHandler;
+  Result := false;
+  LResponseStream := TStringStream.Create;
+  LParams := TStringList.Create;
+  try
+    if Delete(AURL, LResponseStream, LResponseCode, LErrorDetail, AResponseType)
+    then
+    begin
+      AResponse := LResponseStream.DataString;
+      Result := true;
+    end
+    else
+    begin
+      AResponse := GetErrorResponse(LResponseCode, LErrorDetail,
+        LResponseStream, AResponseType);
+    end;
+  finally
+    FreeAndNil(LResponseStream);
+    FreeAndNil(LParams);
   end;
-  Result := FHTTPClient;
+end;
+
+function TXEROAPIBase.Delete<T>(AURL: String; AResponse: T): Boolean;
+var
+  LURL: string;
+  LErrorMessage: string;
+  LResponseCode: integer;
+begin
+  if not Assigned(AResponse) then
+    AResponse := T.Create(nil);
+  Result := Delete(LURL, AResponse.Stream, LResponseCode, LErrorMessage,
+    AResponse.ResponseType);
+
+  AResponse.SetResponse(Result, LResponseCode, LErrorMessage);
+
+end;
+
+destructor TXEROAPIBase.Destroy;
+begin
+  try
+    if Assigned(FHTTPClient) then
+      FHTTPClient.IOHandler := nil;
+    FreeAndNil(FSSLHandler);
+    FreeAndNil(FHTTPClient);
+  finally
+    inherited;
+  end;
+end;
+
+function TXEROAPIBase.GetFilterURL(AURL, AFilter, AOrderBy: string;
+  APage: integer): string;
+begin
+  Result := AURL;
+  if not IsEmptyString(AFilter) then
+  begin
+    Result := Result + GetURLSeperator(Result) + 'where=' + URLEncode(AFilter);
+  end;
+  if not IsEmptyString(AOrderBy) then
+  begin
+    Result := Result + GetURLSeperator(Result) + 'order=' + URLEncode(AOrderBy);
+  end;
+  if APage > 0 then
+  begin
+    Result := Result + GetURLSeperator(Result) + 'page=' + IntToStr(APage);
+  end;
+end;
+
+function TXEROAPIBase.Find<T>(AURL: string; AResponse: T;
+  AFilter, AOrderBy: string; APage: integer; ALastModified: TDateTime): Boolean;
+var
+  LURL: string;
+  LErrorMessage: string;
+  LResponseCode: integer;
+begin
+  if not Assigned(AResponse) then
+    AResponse := T.Create(nil);
+
+  LURL := GetFilterURL(AURL, AFilter, AOrderBy, APage);
+
+  Result := Get(LURL, nil, AResponse.Stream, LResponseCode, LErrorMessage,
+    ALastModified, AResponse.ResponseType);
+
+  AResponse.SetResponse(Result, LResponseCode, LErrorMessage);
+
+end;
+
+function TXEROAPIBase.Delete(AURL: String; AResponse: TStream;
+  var ResponseCode: integer; var ErrorDetail: String;
+  AResponseType: TResponseType): Boolean;
+var
+  LURL: string;
+begin
+  ValidateSettings;
+  try
+
+    // case FXEROAppDetails.OAuthSignatureMethod of
+    // oaHMAC:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'DELETE', AURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+    // end;
+    //
+    // oaRSA:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'DELETE', AURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.PrivateKey.Text);
+    // end;
+    // end;
+
+    HTTPClient.Request.ContentType := 'application/x-www-form-urlencoded';
+    case AResponseType of
+      rtXML:
+        ;
+      rtJSON:
+        HTTPClient.Request.Accept := 'application/json';
+    end;
+    HTTPClient.HTTPOptions := [hoForceEncodeParams];
+
+    try
+      LURL := ParamsToURL(AURL, nil);
+      SetHTTPHeader;
+      Log(Format('URL: %s, Headers: %s, Accept: %s',
+        [LURL, HTTPClient.Request.CustomHeaders.Text,
+        HTTPClient.Request.Accept]));
+      HTTPClient.Delete(LURL, AResponse);
+      ResponseCode := HTTPClient.Response.ResponseCode;
+      ErrorDetail := HTTPClient.Response.ResponseText;
+      Result := true;
+
+    except
+      on E: EIdHTTPProtocolException do
+      begin
+        ResponseCode := E.ErrorCode;
+        ErrorDetail := E.Message;
+        Result := false;
+        StringToStream(AResponse, E.ErrorMessage);
+      end;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      ResponseCode := 10000;
+      ErrorDetail := E.Message;
+      Result := false;
+    end;
+  end;
+
+  Debug('Delete', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
+    StreamToString(AResponse));
 end;
 
 procedure TXEROAPIBase.ValidateSettings;
 begin
-  if assigned(FXEROAppDetails) then
+  if Assigned(FXEROAppDetails) then
   begin
     if not FXEROAppDetails.ValidateSettings then
     begin
       raise EXEROException.Create
-        ('Application setting are incomplete. Please ensure ConsumerKey, ConsumerSecret and PrivateKey are assinged.');
+        ('Application setting are incomplete. Please ensure ClientID and Authentication component are assiged.');
     end;
   end
   else
   begin
     raise EXEROException.Create('Application settings have not been assigned.');
   end;
+  if Assigned(XEROAuthenticator) then
+  begin
+    if not XEROAuthenticator.Authenticated then
+    begin
+      raise EXEROException.Create('Authentication required.');
+    end;
+  end
+  else
+  begin
+    raise EXEROException.Create('Authentication has not been assigned.');
+  end;
 end;
 
-procedure TXEROAPIBase.SetXEROAppDetails(AXEROAppDetails: TXEROAppDetails);
+procedure TXEROAPIBase.SetHTTPHeader;
 begin
-  FXEROAppDetails := AXEROAppDetails;
+  if XEROAuthenticator.AccessToken.IsValid then
+  begin
+    SetBearerHeader(XEROAuthenticator.AccessToken.AccessToken);
+    HTTPClient.Request.CustomHeaders.Values['xero-tenant-id'] := FTenantId;
+  end;
 end;
 
-function TXEROAPIBase.GetXEROAppDetails: TXEROAppDetails;
+procedure TXEROAPIBase.SetTenantId(const Value: string);
 begin
-  Result := FXEROAppDetails;
+  FTenantId := Value;
+end;
+
+function TXEROAPIBase.StreamToString(AStream: TStream): string;
+var
+  LStringStream: TStringStream;
+begin
+  Result := '';
+  LStringStream := TStringStream.Create('');
+  try
+    try
+      LStringStream.CopyFrom(AStream, 0);
+      Result := LStringStream.DataString;
+    except
+      on E: Exception do
+      begin
+        Error(E, 'Failed to convert stream to string');
+      end;
+    end;
+  finally
+    FreeAndNil(LStringStream);
+  end;
+end;
+
+procedure TXEROAPIBase.StringToStream(AStream: TStream; AValue: string);
+var
+  LStringStream: TStringStream;
+begin
+  LStringStream := TStringStream.Create(AValue);
+  try
+    try
+      if Assigned(AStream) then
+      begin
+        AStream.CopyFrom(LStringStream, 0);
+      end;
+    except
+      on E: Exception do
+      begin
+        Error(E, 'Failed to convert string to stream');
+      end;
+    end;
+  finally
+    FreeAndNil(LStringStream);
+  end;
 end;
 
 function TXEROAPIBase.Get(AURL: string; AParams: string; var AResponse: string;
   ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML): Boolean;
 var
-  HTTPStream: TStringStream;
-  ResponseCode: integer;
-  ErrorDetail: string;
-  FormParams: TStringList;
+  LResponseStream: TStringStream;
+  LParams: TStringList;
+  LResponseCode: integer;
+  LErrorDetail: string;
 begin
-  FormParams := nil;
-  HTTPStream := TStringStream.Create('');
+  Result := false;
+  LResponseStream := TStringStream.Create;
+  LParams := TStringList.Create;
   try
-    if AParams <> '' then
+    LParams.Text := AParams;
+    if Get(AURL, LParams, LResponseStream, LResponseCode, LErrorDetail,
+      ALastModified, AResponseType) then
     begin
-      FormParams := TStringList.Create;
-      FormParams.Text := AParams;
+      AResponse := LResponseStream.DataString;
+      Result := true;
+    end
+    else
+    begin
+      AResponse := GetErrorResponse(LResponseCode, LErrorDetail,
+        LResponseStream, AResponseType);
     end;
-    HTTPStream.Position := 0;
-    Result := Get(AURL, FormParams, HTTPStream, ResponseCode, ErrorDetail,
-      ALastModified, AResponseType);
-    HTTPStream.Position := 0;
-    AResponse := HTTPStream.ReadString(HTTPStream.Size);
-    if not Result then
-      AResponse := Format('ERROR: %s (%s)', [ErrorDetail, AResponse]);
-
   finally
-    FreeAndNil(HTTPStream);
-    FreeAndNil(FormParams);
+    FreeAndNil(LResponseStream);
+    FreeAndNil(LParams);
   end;
 end;
 
@@ -742,31 +749,28 @@ function TXEROAPIBase.Get(AURL: string; AParams: TStrings; AResponse: TStream;
   var ResponseCode: integer; var ErrorDetail: string;
   ALastModified: TDateTime = 0; AResponseType: TResponseType = rtXML): Boolean;
 var
-  strStream: TStringStream;
+  LURL: string;
 begin
   Result := true;
   ValidateSettings;
   try
-    if assigned(AParams) then
-      Debug('Get', Format('URL: %s, Params: %s', [AURL, AParams.CommaText]))
-    else
-      Debug('Get', Format('URL: %s, Params: nil', [AURL]));
+    LURL := ParamsToURL(AURL, AParams);
 
-    case FXEROAppDetails.OAuthSignatureMethod of
-      oaHMAC:
-        begin
-          OAuthSignRequest(HTTPClient.Request, 'GET', AURL, AParams,
-            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
-            FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
-        end;
-
-      oaRSA:
-        begin
-          OAuthSignRequest(HTTPClient.Request, 'GET', AURL, AParams,
-            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
-            FXEROAppDetails.PrivateKey.Text);
-        end;
-    end;
+    // case FXEROAppDetails.OAuthSignatureMethod of
+    // oaHMAC:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'GET', LURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+    // end;
+    //
+    // oaRSA:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'GET', LURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.PrivateKey.Text);
+    // end;
+    // end;
 
     case AResponseType of
       rtXML:
@@ -775,6 +779,7 @@ begin
       rtJSON:
         begin
           HTTPClient.Request.Accept := 'application/json';
+          HTTPClient.Request.ContentType := 'application/json';
         end;
     end;
 
@@ -783,26 +788,21 @@ begin
       HTTPClient.Request.LastModified := ALastModified;
     end;
 
-    Log(Format('URL: %s, Headers: %s, Accept: %s, Last Modified %s',
-      [AURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept,
-      DateTimeToStr(HTTPClient.Request.LastModified)]));
-
     try
-      HTTPClient.Get(AURL, AResponse);
+      SetHTTPHeader;
+      Log(Format('URL: %s, Headers: %s, Accept: %s, Last Modified %s',
+        [LURL, HTTPClient.Request.CustomHeaders.Text, HTTPClient.Request.Accept,
+        DateTimeToStr(HTTPClient.Request.LastModified)]));
+      HTTPClient.Get(LURL, AResponse);
       ResponseCode := HTTPClient.Response.ResponseCode;
       ErrorDetail := HTTPClient.Response.ResponseText;
     except
       on E: EIdHTTPProtocolException do
       begin
         ResponseCode := E.ErrorCode;
-        ErrorDetail := E.Message;
+        ErrorDetail := E.Message + ' ' + E.ErrorMessage;
         Result := false;
-        strStream := TStringStream.Create(E.ErrorMessage);
-        try
-          AResponse.CopyFrom(strStream, 0);
-        finally
-          strStream.Free;
-        end;
+        StringToStream(AResponse, E.ErrorMessage);
         Error(ErrorDetail, ResponseCode);
       end;
     end;
@@ -817,61 +817,95 @@ begin
     end;
   end;
 
-  strStream := TStringStream.Create('');
-  try
-    strStream.CopyFrom(AResponse, 0);
-    Debug('Get', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
-      strStream.DataString);
-  finally
-    FreeAndNil(strStream);
-  end;
+  Debug('Get', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
+    StreamToString(AResponse));
 
 end;
 
-function TXEROAPIBase.Post(AURL: String; ASource: TStrings; AResponse: TStream;
-  var ResponseCode: integer; var ErrorDetail: String;
-  AResponseType: TResponseType = rtXML): Boolean;
+function TXEROAPIBase.GetErrorResponse(AResponseCode: integer;
+  AErrorDetail: string; AResponse: TStream;
+  AResponseType: TResponseType): string;
 var
-  strStream: TStringStream;
+  LMessage: TStringList;
+  LDescription: string;
+begin
+  LMessage := TStringList.Create;
+  try
+    LDescription := AErrorDetail;
+    if Assigned(AResponse) then
+      LDescription := LDescription + #13#10 + StreamToString(AResponse);
+
+    case AResponseType of
+      rtJSON:
+        begin
+          LMessage.Add('{');
+          LMessage.Add(Format('"ErrorCode" : %s',
+            [AnsiQuotedStr(IntToStr(AResponseCode), '"')]));
+          LMessage.Add(Format('"Description" : %s',
+            [AnsiQuotedStr(LDescription, '"')]));
+          LMessage.Add('}');
+        end;
+      rtXML:
+        begin
+          LMessage.Add('<?xml version=''1.0'' encoding=''utf-8''?>');
+          LMessage.Add('<Error>');
+          LMessage.Add(Format('<ErrorCode>%d</ErrorCode>', [AResponseCode]));
+          LMessage.Add('<Description>');
+          LMessage.Add('![CDATA[' + LDescription + ']]');
+          LMessage.Add('</Description>');
+          LMessage.Add('</Error>');
+        end;
+    end;
+    Result := LMessage.Text;
+  finally
+    FreeAndNil(LMessage);
+  end;
+end;
+
+function TXEROAPIBase.Post(AURL: String; AParams: TStrings; ARequest: TStream;
+  AResponse: TStream; var ResponseCode: integer; var ErrorDetail: String;
+  AResponseType: TResponseType): Boolean;
+var
+  LURL: string;
 begin
   ValidateSettings;
   try
-    if assigned(ASource) then
-      Debug('Post', Format('URL: %s, Params: %s', [AURL, ASource.CommaText]))
-    else
-      Debug('Post', Format('URL: %s, Params: nil', [AURL]));
+    LURL := ParamsToURL(AURL, AParams);
 
-    case FXEROAppDetails.OAuthSignatureMethod of
-      oaHMAC:
-        begin
-          OAuthSignRequest(HTTPClient.Request, 'POST', AURL, ASource,
-            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
-            FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
-        end;
+    // case FXEROAppDetails.OAuthSignatureMethod of
+    // oaHMAC:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'POST', AURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+    // end;
+    //
+    // oaRSA:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'POST', AURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.PrivateKey.Text);
+    // end;
+    // end;
 
-      oaRSA:
-        begin
-          OAuthSignRequest(HTTPClient.Request, 'POST', AURL, ASource,
-            FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
-            FXEROAppDetails.PrivateKey.Text);
-        end;
-    end;
-
-    HTTPClient.Request.ContentType := 'application/x-www-form-urlencoded';
+    HTTPClient.Request.ContentType := 'text/xml;charset=UTF-8';
     case AResponseType of
       rtXML:
         ;
       rtJSON:
-        HTTPClient.Request.Accept := 'application/json';
+        begin
+          HTTPClient.Request.Accept := 'application/json';
+          HTTPClient.Request.ContentType := 'application/json';
+        end;
     end;
     HTTPClient.HTTPOptions := [hoForceEncodeParams];
 
-    Log(Format('URL: %s, Headers: %s, Accept: %s',
-      [AURL, HTTPClient.Request.CustomHeaders.Text,
-      HTTPClient.Request.Accept]));
-
     try
-      HTTPClient.Post(AURL, ASource, AResponse);
+      SetHTTPHeader;
+      Log(Format('URL: %s, Headers: %s, Accept: %s',
+        [LURL, HTTPClient.Request.CustomHeaders.Text,
+        HTTPClient.Request.Accept]));
+      HTTPClient.Post(LURL, ARequest, AResponse);
       ResponseCode := HTTPClient.Response.ResponseCode;
       ErrorDetail := HTTPClient.Response.ResponseText;
       Result := true;
@@ -881,14 +915,8 @@ begin
       begin
         ResponseCode := E.ErrorCode;
         ErrorDetail := E.Message;
-        // Convert error message to stream for parsing.
         Result := false;
-        strStream := TStringStream.Create(E.ErrorMessage);
-        try
-          AResponse.CopyFrom(strStream, 0);
-        finally
-          strStream.Free;
-        end;
+        StringToStream(AResponse, E.ErrorMessage);
       end;
     end;
 
@@ -901,16 +929,220 @@ begin
     end;
   end;
 
-  strStream := TStringStream.Create('');
-  try
-    strStream.CopyFrom(AResponse, 0);
-    Debug('Get', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
-      strStream.DataString);
-  finally
-    FreeAndNil(strStream);
+  Debug('Put', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
+    StreamToString(AResponse));
+end;
+
+function TXEROAPIBase.ParamsToURL(AURL: string; AParams: TStrings): string;
+var
+  LParams: string;
+begin
+  Result := AURL;
+  if Assigned(AParams) then
+  begin
+    LParams := AParams.Text;
+    LParams := StringReplace(LParams, #13, '', [rfReplaceAll, rfIgnoreCase]);
+    LParams := StringReplace(LParams, #10, '&', [rfReplaceAll, rfIgnoreCase]);
+    if not IsEmptyString(LParams) then
+    begin
+      Result := Result + '?' + Copy(LParams, 1, Length(LParams) - 1);
+    end;
   end;
 
 end;
+
+function TXEROAPIBase.Post(AURL, AParams, ARequest: string;
+  var AResponse: string; AResponseType: TResponseType): Boolean;
+var
+  LRequestStream: TStringStream;
+  LResponseStream: TStringStream;
+  LParams: TStringList;
+  LResponseCode: integer;
+  LErrorDetail: string;
+begin
+  Result := false;
+  LResponseStream := TStringStream.Create;
+  LRequestStream := TStringStream.Create(ARequest);
+  LParams := TStringList.Create;
+  try
+    Debug('Post', 'Request: ' + LRequestStream.DataString);
+    LParams.Text := AParams;
+    if Post(AURL, LParams, LRequestStream, LResponseStream, LResponseCode,
+      LErrorDetail, AResponseType) then
+    begin
+      AResponse := LResponseStream.DataString;
+      Result := true;
+    end
+    else
+    begin
+      AResponse := GetErrorResponse(LResponseCode, LErrorDetail,
+        LResponseStream, AResponseType);
+    end;
+  finally
+    FreeAndNil(LRequestStream);
+    FreeAndNil(LResponseStream);
+    FreeAndNil(LParams);
+  end;
+end;
+
+function TXEROAPIBase.Post<T>(AURL, ARequest: string; AResponse: T;
+  AParams: string): Boolean;
+var
+  LURL: string;
+  LErrorMessage: string;
+  LResponseCode: integer;
+  LParams: TStringList;
+  LRequest: TStringStream;
+begin
+  LParams := TStringList.Create;
+  LRequest := TStringStream.Create(ARequest);
+  try
+    if not Assigned(AResponse) then
+      AResponse := T.Create(nil);
+
+    LParams.Text := AParams;
+
+    Result := Post(LURL, LParams, LRequest, AResponse.Stream, LResponseCode,
+      LErrorMessage, AResponse.ResponseType);
+
+    AResponse.SetResponse(Result, LResponseCode, LErrorMessage);
+  finally
+    FreeAndNil(LParams);
+    FreeAndNil(LRequest);
+  end;
+end;
+
+function TXEROAPIBase.Put(AURL, AParams, ARequest: string;
+  var AResponse: string; AResponseType: TResponseType): Boolean;
+var
+  LRequestStream: TStringStream;
+  LResponseStream: TStringStream;
+  LParams: TStringList;
+  LResponseCode: integer;
+  LErrorDetail: string;
+begin
+  Result := false;
+  LResponseStream := TStringStream.Create;
+  LRequestStream := TStringStream.Create(ARequest);
+  LParams := TStringList.Create;
+  try
+    Debug('Put', 'Request: ' + LRequestStream.DataString);
+    LParams.Text := AParams;
+    if Put(AURL, LParams, LRequestStream, LResponseStream, LResponseCode,
+      LErrorDetail, AResponseType) then
+    begin
+      AResponse := LResponseStream.DataString;
+      Result := true;
+    end
+    else
+    begin
+      AResponse := GetErrorResponse(LResponseCode, LErrorDetail,
+        LResponseStream, AResponseType);
+    end;
+  finally
+    FreeAndNil(LRequestStream);
+    FreeAndNil(LResponseStream);
+    FreeAndNil(LParams);
+  end;
+end;
+
+function TXEROAPIBase.Put<T>(AURL, ARequest: string; AResponse: T;
+  AParams: string): Boolean;
+var
+  LErrorMessage: string;
+  LResponseCode: integer;
+  LParams: TStringList;
+  LRequest: TStringStream;
+begin
+  LParams := TStringList.Create;
+  LRequest := TStringStream.Create(ARequest);
+  try
+    if not Assigned(AResponse) then
+      AResponse := T.Create(nil);
+
+    LParams.Text := AParams;
+
+    Result := Put(AURL, LParams, LRequest, AResponse.Stream, LResponseCode,
+      LErrorMessage, AResponse.ResponseType);
+
+    AResponse.SetResponse(Result, LResponseCode, LErrorMessage);
+  finally
+    FreeAndNil(LParams);
+    FreeAndNil(LRequest);
+  end;
+end;
+
+function TXEROAPIBase.Put(AURL: String; AParams: TStrings; ARequest: TStream;
+  AResponse: TStream; var ResponseCode: integer; var ErrorDetail: String;
+  AResponseType: TResponseType): Boolean;
+var
+  LURL: string;
+begin
+  ValidateSettings;
+  try
+    LURL := ParamsToURL(AURL, AParams);
+
+    // case FXEROAppDetails.OAuthSignatureMethod of
+    // oaHMAC:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'PUT', AURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.ConsumerSecret, FXEROAppDetails.ConsumerSecret);
+    // end;
+    //
+    // oaRSA:
+    // begin
+    // OAuthSignRequest(HTTPClient.Request, 'PUT', AURL, nil,
+    // FXEROAppDetails.ConsumerKey, FXEROAppDetails.ConsumerKey,
+    // FXEROAppDetails.PrivateKey.Text);
+    // end;
+    // end;
+
+    HTTPClient.Request.ContentType := 'application/x-www-form-urlencoded';
+    case AResponseType of
+      rtXML:
+        ;
+      rtJSON:
+        begin
+          HTTPClient.Request.Accept := 'application/json';
+          HTTPClient.Request.ContentType := 'application/json';
+        end;
+    end;
+    HTTPClient.HTTPOptions := [hoForceEncodeParams];
+
+    try
+      SetHTTPHeader;
+      Log(Format('URL: %s, Headers: %s, Accept: %s',
+        [LURL, HTTPClient.Request.CustomHeaders.Text,
+        HTTPClient.Request.Accept]));
+      HTTPClient.Put(LURL, ARequest, AResponse);
+      ResponseCode := HTTPClient.Response.ResponseCode;
+      ErrorDetail := HTTPClient.Response.ResponseText;
+      Result := true;
+
+    except
+      on E: EIdHTTPProtocolException do
+      begin
+        ResponseCode := E.ErrorCode;
+        ErrorDetail := E.Message;
+        Result := false;
+        StringToStream(AResponse, E.ErrorMessage);
+      end;
+    end;
+
+  except
+    on E: Exception do
+    begin
+      ResponseCode := 10000;
+      ErrorDetail := E.Message;
+      Result := false;
+    end;
+  end;
+
+  Debug('Put', 'Result: ' + BoolToStr(Result, true) + ', Response: ' +
+    StreamToString(AResponse));
+end;
+
 
 
 
@@ -969,120 +1201,30 @@ begin
   inherited;
 end;
 
+function TXEROAPI.Find<T>(AResponse: T; AFilter, AOrderBy: string;
+  APage: integer; ALastModified: TDateTime): Boolean;
+begin
+  Result := inherited Find<T>(GetAPIURL, AResponse, AFilter, AOrderBy, APage,
+    ALastModified);
+end;
+
+function TXEROAPI.Post<T>(ARequest: string; AResponse: T;
+  AParams: string): Boolean;
+begin
+  Result := inherited Post<T>(GetAPIURL, ARequest, AResponse);
+end;
+
+function TXEROAPI.Put<T>(ARequest: string; AResponse: T;
+  AParams: string): Boolean;
+begin
+  Result := inherited Put<T>(GetAPIURL, ARequest, AResponse);
+end;
+
 // TXEROAPI
 
-procedure TXEROAPI.ValidateSettings;
+function TXEROAPI.Delete<T>(AResponse: T; AParams: string): Boolean;
 begin
-  inherited ValidateSettings;
-  if not assigned(FXEROResponseBase) then
-  begin
-    raise EXEROException.Create('Response has not been assigned.');
-  end;
-end;
-
-function TXEROAPI.GetDateTimeFilterString(ADateTime: TDateTime): string;
-var
-  Year, Month, Day: Word;
-begin
-  if ADateTime <> 0 then
-  begin
-    DecodeDate(ADateTime, Year, Month, Day);
-    Result := Format('DateTime(%d,%d,%d)', [Year, Month, Day]);
-  end
-  else
-  begin
-    Result := '';
-  end;
-end;
-
-procedure TXEROAPI.SetFilter(const Value: string);
-begin
-  FFilter := Value;
-end;
-
-procedure TXEROAPI.SetXEROResponseBase(AXEROResponseBase: TXEROResponseBase);
-begin
-  if assigned(AXEROResponseBase) then
-  begin
-    FXEROResponseBase := AXEROResponseBase;
-  end
-  else
-  begin
-    FXEROResponseBase := nil;
-  end;
-end;
-
-function TXEROAPI.GetXEROResponseBase: TXEROResponseBase;
-begin
-  Result := FXEROResponseBase;
-end;
-
-procedure TXEROAPI.ResetFilter;
-begin
-  FFilter := '';
-end;
-
-procedure TXEROAPI.AddGUIDToFilter(AFieldName, AData: string);
-begin
-  if not IsEmptyString(AData) then
-  begin
-    AddToFilter(AFieldName, Format('GUID("%s")', [AData]), false);
-  end;
-end;
-
-procedure TXEROAPI.AddToFilter(AFieldName: string; AData: string;
-  AQuoteData: Boolean = true);
-var
-  Data: string;
-begin
-  if AQuoteData then
-  begin
-    Data := '"' + AData + '"';
-  end
-  else
-  begin
-    Data := AData;
-  end;
-  if not IsEmptyString(AData) then
-  begin
-    if not IsEmptyString(FFilter) then
-    begin
-      FFilter := FFilter + ' AND ';
-    end;
-    FFilter := FFilter + AFieldName + '==' + Data;
-  end;
-end;
-
-function TXEROAPI.Find(AFilter: string = ''; AOrderBy: string = '';
-  APage: integer = 0; ALastModified: TDateTime = 0): Boolean;
-var
-  url: string;
-  ResponseCode: integer;
-  ErrorDetail: String;
-
-begin
-  ValidateSettings;
-
-  url := GetAPIURL;
-
-  if not IsEmptyString(AFilter) then
-  begin
-    url := url + GetURLSeperator(url) + 'where=' + URLEncode(AFilter);
-  end;
-  if not IsEmptyString(AOrderBy) then
-  begin
-    url := url + GetURLSeperator(url) + 'order=' + URLEncode(AOrderBy);
-  end;
-  if APage > 0 then
-  begin
-    url := url + GetURLSeperator(url) + 'page=' + IntToStr(APage);
-  end;
-
-  FXEROResponseBase.ClearStream;
-  Result := Get(url, nil, FXEROResponseBase.Stream, ResponseCode, ErrorDetail,
-    ALastModified, FXEROResponseBase.ResponseType);
-
-  FXEROResponseBase.SetResponse(Result, ResponseCode, ErrorDetail);
+  Result := inherited Delete<T>(GetAPIURL, AResponse);
 end;
 
 // TXEROQueryBuilder
@@ -1330,6 +1472,451 @@ begin
   Dec(FOpenParen);
   AppendStr(')');
   FState := bsOk;
+end;
+
+{ TXEROFilter }
+procedure TXEROFilter.AddToFilter(AFieldName: string; AData: TDate;
+  AQuoteData: Boolean);
+begin
+  AddToFilter(AFieldName, GetDateTimeFilterString(AData), true);
+end;
+
+procedure TXEROFilter.AddGUIDToFilter(AFieldName, AData: string);
+begin
+  if not IsEmptyString(AData) then
+  begin
+    AddToFilter(AFieldName, Format('GUID("%s")', [AData]), false);
+  end;
+end;
+
+function TXEROFilter.GetDateTimeFilterString(ADateTime: TDateTime): string;
+var
+  Year, Month, Day: Word;
+begin
+  if ADateTime <> 0 then
+  begin
+    DecodeDate(ADateTime, Year, Month, Day);
+    Result := Format('DateTime(%d,%d,%d)', [Year, Month, Day]);
+  end
+  else
+  begin
+    Result := '';
+  end;
+end;
+
+procedure TXEROFilter.ResetFilter;
+begin
+
+end;
+
+function TXEROFilter.Text: string;
+begin
+  Result := FFilter;
+end;
+
+procedure TXEROFilter.AddToFilter(AFieldName, AData: string;
+  AQuoteData: Boolean);
+var
+  Data: string;
+begin
+  if AQuoteData then
+  begin
+    Data := '"' + AData + '"';
+  end
+  else
+  begin
+    Data := AData;
+  end;
+  if not IsEmptyString(AData) then
+  begin
+    if not IsEmptyString(FFilter) then
+    begin
+      FFilter := FFilter + ' AND ';
+    end;
+    FFilter := FFilter + AFieldName + '==' + Data;
+  end;
+end;
+
+procedure TXEROFilter.AddToFilter(AFieldName: string; AData: integer;
+  AQuoteData: Boolean);
+begin
+  AddToFilter(AFieldName, IntToStr(AData), AQuoteData);
+end;
+
+procedure TXEROFilter.AddToFilter(AFieldName: string; AData: double;
+  AQuoteData: Boolean);
+begin
+  AddToFilter(AFieldName, FloatToStr(AData), AQuoteData);
+end;
+
+{ TXEROAccessToken }
+
+constructor TXEROAccessToken.Create;
+begin
+  FlastRefresh := 0;
+  FexpiresIn := 0;
+  FaccessToken := '';
+end;
+
+function TXEROAccessToken.ExpiryDateTime: TDateTime;
+begin
+  Result := IncSecond(FlastRefresh, FexpiresIn);
+end;
+
+procedure TXEROAccessToken.FromJSON(AJSON: string);
+var
+  LJsonResponse: TJSONObject;
+begin
+  LJsonResponse := TJSONObject.ParseJSONValue(AJSON) as TJSONObject;
+  FaccessToken := LJsonResponse.GetValue<string>('access_token');
+  FidToken := LJsonResponse.GetValue<string>('id_token');
+  FexpiresIn := LJsonResponse.GetValue<integer>('expires_in');
+  FtokenType := LJsonResponse.GetValue<string>('token_type');
+  Fscope := LJsonResponse.GetValue<string>('scope');
+  FrefreshToken := LJsonResponse.GetValue<string>('refresh_token');
+  FlastRefresh := now;
+end;
+
+function TXEROAccessToken.IsValid: Boolean;
+begin
+  Result := true;
+  if Result then
+    Result := not IsEmptyString(FaccessToken);
+  if Result then
+    Result := ExpiryDateTime > now;
+end;
+
+procedure TXEROAccessToken.SetaccessToken(const Value: string);
+begin
+  FaccessToken := Value;
+end;
+
+procedure TXEROAccessToken.SetexpiresIn(const Value: integer);
+begin
+  FexpiresIn := Value;
+end;
+
+procedure TXEROAccessToken.SetidToken(const Value: string);
+begin
+  FidToken := Value;
+end;
+
+procedure TXEROAccessToken.SetlastRefresh(const Value: TDateTime);
+begin
+  FlastRefresh := Value;
+end;
+
+procedure TXEROAccessToken.SetrefreshToken(const Value: string);
+begin
+  FrefreshToken := Value;
+end;
+
+procedure TXEROAccessToken.Setscope(const Value: string);
+begin
+  Fscope := Value;
+end;
+
+procedure TXEROAccessToken.SettokenType(const Value: string);
+begin
+  FtokenType := Value;
+end;
+
+{ TXEROAuthenticatorBase }
+
+constructor TXEROAuthenticatorBase.Create(AOwner: TComponent);
+begin
+  inherited;
+  FXEROAccessToken := TXEROAccessToken.Create;
+  FXEROTenants := TXEROTenants.Create;
+  FThreadTimer := TThreadTimer.Create(OnThreadTimer, 5000);
+  SetDefaultProperties;
+end;
+
+destructor TXEROAuthenticatorBase.Destroy;
+begin
+  try
+    FreeAndNil(FXEROAccessToken);
+    FreeAndNil(FXEROTenants);
+    FThreadTimer.Terminate;
+  finally
+    inherited;
+  end;
+end;
+
+procedure TXEROAuthenticatorBase.CheckAccessTokenRefresh;
+begin
+  try
+    if AccessToken.IsValid then
+    begin
+      if MinutesBetween(now, AccessToken.ExpiryDateTime) < 5 then
+      begin
+        Refresh;
+      end;
+    end;
+  except
+    on E: Exception do
+    begin
+      Error(E);
+    end;
+  end;
+end;
+
+procedure TXEROAuthenticatorBase.OnThreadTimer(ASender: TObject);
+begin
+  CheckAccessTokenRefresh;
+  InternalTimerEvent;
+end;
+
+function TXEROAuthenticatorBase.GetAccessToken: TXEROAccessToken;
+begin
+  Result := FXEROAccessToken;
+end;
+
+function TXEROAuthenticatorBase.GetAuthenticated: Boolean;
+begin
+  Result := FXEROAccessToken.IsValid;
+end;
+
+function TXEROAuthenticatorBase.GetExpiryDate: TDateTime;
+begin
+  Result := FXEROAccessToken.ExpiryDateTime;
+end;
+
+function TXEROAuthenticatorBase.GetXEROTenants: TXEROTenants;
+begin
+  Result := FXEROTenants;
+end;
+
+procedure TXEROAuthenticatorBase.InternalTimerEvent;
+begin
+
+end;
+
+procedure TXEROAuthenticatorBase.Login;
+begin
+  Authenticate;
+end;
+
+procedure TXEROAuthenticatorBase.Refresh;
+var
+  LMessage: string;
+begin
+  if RefreshAccessToken(LMessage) then
+  begin
+    Log('Token refreshed');
+  end
+  else
+  begin
+    Error(LMessage);
+  end;
+end;
+
+procedure TXEROAuthenticatorBase.SetDefaultProperties;
+begin
+
+end;
+
+procedure TXEROAuthenticatorBase.SetOnAuthenticationComplete
+  (const Value: TXEROOnAuthenticationComplete);
+begin
+  FOnAuthenticationComplete := Value;
+end;
+
+function TXEROAuthenticatorBase.RefreshAccessToken(var AMessage
+  : string): Boolean;
+var
+  LParams: TStringList;
+  LPostStream: TStringStream;
+  LData: string;
+begin
+  Result := false;
+  AMessage := '';
+  LParams := TStringList.Create;
+  LPostStream := TStringStream.Create;
+  try
+    LParams.Add('grant_type=refresh_token');
+    LParams.Add('&client_id=' + XEROAppDetails.ClientID);
+    LParams.Add('&refresh_token=' + AccessToken.RefreshToken);
+    try
+      Debug('RefreshAccessToken', LParams.Text);
+      LPostStream.WriteString(StripCRLLF(LParams.Text));
+      HTTPClient.AllowCookies := true;
+      HTTPClient.Request.Clear;
+      HTTPClient.Request.ContentType := 'application/x-www-form-urlencoded';
+      LData := HTTPClient.Post(XERO_API_IDENTITY_URL + 'connect/token',
+        LPostStream);
+      Debug('RefreshAccessToken', LData);
+      AccessToken.FromJSON(LData);
+      Result := true;
+    except
+      on E: EIdHTTPProtocolException do
+      begin
+        AMessage := E.ErrorMessage;
+        Error(E, LData);
+      end;
+      on E: Exception do
+      begin
+        AMessage := E.Message;
+        Error(E);
+      end;
+    end;
+  finally
+    FreeAndNil(LParams);
+    FreeAndNil(LPostStream)
+  end;
+end;
+
+procedure TXEROAuthenticatorBase.RefreshAuthentication;
+begin
+
+end;
+
+function TXEROAuthenticatorBase.UpdateTenants(var AMessage: string): Boolean;
+var
+  LData: string;
+begin
+  Result := false;
+  AMessage := '';
+  try
+    HTTPClient.AllowCookies := true;
+    HTTPClient.Request.Clear;
+    SetBearerHeader(AccessToken.AccessToken);
+    HTTPClient.Request.ContentType := 'application/json';
+    LData := HTTPClient.Get(XERO_API_CONNECTION_URL);
+    Debug('UpdateTenants', LData);
+    Tenants.FromJSON(LData);
+    Result := true;
+  except
+    on E: EIdHTTPProtocolException do
+    begin
+      AMessage := E.ErrorMessage;
+      Error(E, LData);
+    end;
+    on E: Exception do
+    begin
+      AMessage := E.Message;
+      Error(E);
+    end;
+  end;
+end;
+
+{ TXEROHTTPClientBase }
+
+function TXEROHTTPClientBase.GetXEROAppDetails: TXEROAppDetails;
+begin
+  Result := FXEROAppDetails;
+end;
+
+function TXEROHTTPClientBase.GetXEROAuthenticator: TXEROAuthenticatorBase;
+begin
+  Result := nil;
+  if Assigned(FXEROAppDetails) then
+    Result := FXEROAppDetails.XEROAuthenticator;
+end;
+
+function TXEROHTTPClientBase.HTTPClient: TIdHTTP;
+var
+  handler: TIdSSLIOHandlerSocketOpenSSL;
+begin
+  if not Assigned(FHTTPClient) then
+    FHTTPClient := TIdHTTP.Create(Self);
+  if Assigned(FHTTPClient) then
+  begin
+    FHTTPClient.HandleRedirects := true;
+    FHTTPClient.HTTPOptions := [];
+  end;
+  if not Assigned(FSSLHandler) then
+  begin
+    handler := TIdSSLIOHandlerSocketOpenSSL.Create(Self);
+    FSSLHandler := handler;
+    handler.SSLOptions.Method := sslvTLSv1_2;
+    FHTTPClient.IOHandler := FSSLHandler;
+  end;
+  Result := FHTTPClient;
+end;
+
+procedure TXEROHTTPClientBase.SetBearerHeader(AAccessToken: string);
+begin
+  HTTPClient.Request.CustomHeaders.Values['Authorization'] := 'Bearer ' +
+    AAccessToken;
+end;
+
+procedure TXEROHTTPClientBase.SetXEROAppDetails(const Value: TXEROAppDetails);
+begin
+  FXEROAppDetails := Value;
+end;
+
+{ TXEROTenants }
+
+constructor TXEROTenant.Create;
+begin
+
+end;
+
+procedure TXEROTenant.FromJSON(AJSON: string);
+var
+  LJsonResponse: TJSONObject;
+begin
+  LJsonResponse := TJSONObject.ParseJSONValue(AJSON) as TJSONObject;
+  FID := LJsonResponse.GetValue<string>('id');
+  FTenantId := LJsonResponse.GetValue<string>('tenantId');
+  FTenantType := LJsonResponse.GetValue<string>('tenantType');
+  FtenantName := LJsonResponse.GetValue<string>('tenantName');
+  FcreatedDateUtc := LJsonResponse.GetValue<string>('createdDateUtc');
+  FupdatedDateUtc := LJsonResponse.GetValue<string>('updatedDateUtc');
+end;
+
+procedure TXEROTenant.SetAuthEventId(const Value: string);
+begin
+  FAuthEventId := Value;
+end;
+
+procedure TXEROTenant.SetcreatedDateUtc(const Value: string);
+begin
+  FcreatedDateUtc := Value;
+end;
+
+procedure TXEROTenant.SetID(const Value: string);
+begin
+  FID := Value;
+end;
+
+procedure TXEROTenant.SetTenantId(const Value: string);
+begin
+  FTenantId := Value;
+end;
+
+procedure TXEROTenant.SettenantName(const Value: string);
+begin
+  FtenantName := Value;
+end;
+
+procedure TXEROTenant.SetTenantType(const Value: string);
+begin
+  FTenantType := Value;
+end;
+
+procedure TXEROTenant.SetupdatedDateUtc(const Value: string);
+begin
+  FupdatedDateUtc := Value;
+end;
+
+{ TXEROTenants }
+
+procedure TXEROTenants.FromJSON(AJSON: string);
+var
+  LArray: TJSONArray;
+  LValue: TJSONValue;
+  LTenant: TXEROTenant;
+begin
+  Clear;
+  LArray := TJSONObject.ParseJSONValue(AJSON) as TJSONArray;
+  for LValue in LArray do
+  begin
+    LTenant := TXEROTenant.Create;
+    LTenant.FromJSON(LValue.ToJSON);
+    Add(LTenant);
+  end;
 end;
 
 end.

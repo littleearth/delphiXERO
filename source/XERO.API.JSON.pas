@@ -11,14 +11,19 @@ type
   private
     FBaseURL: string;
     procedure SetBaseURL(const Value: string);
-    function ParamsToURL(AURL, AParams: string): string;
+    function GetURL(AURL: string): string;
   public
-
     constructor Create(AOwner: TComponent); override;
-    function Get(AURL: string; AParams: string; ALastModified: TDateTime = 0)
-      : string; reintroduce;
-    function Post(AURL: String; ASource: string; var AResponse: string;
-      var AResponseCode: integer): Boolean; reintroduce;
+    function Get(AURL: string; AParams: string; var AResponse: string;
+      ALastModified: TDateTime = 0): boolean; reintroduce;
+    function Post(AURL: String; ASource: string; var AResponse: string)
+      : boolean; reintroduce;
+    function Put(AURL: String; ASource: string; var AResponse: string): boolean;
+      reintroduce;
+    function Delete(AURL: string; var AResponse: string): boolean; reintroduce;
+
+    function Find(AFilter: string = ''; AOrderBy: string = '';
+      APage: Integer = 0; ALastModified: TDateTime = 0): string; reintroduce;
   published
     property BaseURL: string read FBaseURL write SetBaseURL;
   end;
@@ -33,54 +38,76 @@ begin
   FBaseURL := XERO_API_BASE_URL;
 end;
 
-function TXEROApiJSON.Get(AURL, AParams: string;
+function TXEROApiJSON.Delete(AURL: string; var AResponse: string): boolean;
+var
+  LURL: string;
+begin
+  LURL := GetURL(AURL);
+  Result := inherited Delete(LURL, AResponse, rtJSON);
+end;
+
+function TXEROApiJSON.Find(AFilter, AOrderBy: string; APage: Integer;
   ALastModified: TDateTime): string;
 var
-  LResponse: string;
   LURL: string;
+  LXEROResponseJSON: TXEROResponseJSON;
 begin
-  LURL := ParamsToURL(FBaseURL + AURL, AParams);
   Result := '[]';
-  if inherited Get(LURL, '', LResponse, ALastModified, rtJSON) then
-  begin
-    Result := LResponse;
-  end;
-end;
-
-function TXEROApiJSON.ParamsToURL(AURL, AParams: string): string;
-begin
-  Result := AURL + '?' + AParams;
-end;
-
-function TXEROApiJSON.Post(AURL: String; ASource: string; var AResponse: string;
-  var AResponseCode: integer): Boolean;
-var
-  LResponse: TStringStream;
-  LErrorMessage: string;
-  LURL: string;
-  LSource: TStringList;
-begin
-  Result := False;
-  LSource := TStringList.Create;
-  LResponse := TStringStream.Create('');
+  LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
-    LURL := FBaseURL + AURL;
-    LSource.Text := ASource;
-    LResponse.Position := 0;
-    if not inherited Post(LURL, LSource, LResponse, AResponseCode,
-      LErrorMessage, rtJSON) then
+    LURL := FBaseURL;
+    if inherited Find<TXEROResponseJSON>(LURL, LXEROResponseJSON, AFilter,
+      AOrderBy, APage, ALastModified) then
     begin
-      AResponse := LResponse.ReadString(LResponse.Size);
-      Result := TRue;
+      Result := LXEROResponseJSON.AsString;
     end
     else
     begin
-      AResponse := LErrorMessage;
+      raise EXEROException.CreateFmt('Error %d: %s',
+        [LXEROResponseJSON.ResponseCode, LXEROResponseJSON.ErrorMessage]);
     end;
   finally
-    FreeAndNil(LResponse);
-    FreeAndNil(LSource);
+    FreeAndNil(LXEROResponseJSON);
   end;
+end;
+
+function TXEROApiJSON.Get(AURL: string; AParams: string; var AResponse: string;
+  ALastModified: TDateTime): boolean;
+var
+  LURL: string;
+begin
+  LURL := GetURL(AURL);
+  Result := inherited Get(LURL, AParams, AResponse, ALastModified, rtJSON);
+end;
+
+function TXEROApiJSON.GetURL(AURL: string): string;
+begin
+  if Pos('http', AURL) = 1 then
+  begin
+    Result := AURL;
+  end
+  else
+  begin
+    Result := FBaseURL + AURL;
+  end;
+end;
+
+function TXEROApiJSON.Post(AURL: String; ASource: string;
+  var AResponse: string): boolean;
+var
+  LURL: string;
+begin
+  LURL := GetURL(AURL);
+  Result := inherited Post(LURL, '', ASource, AResponse, rtJSON);
+end;
+
+function TXEROApiJSON.Put(AURL, ASource: string; var AResponse: string)
+  : boolean;
+var
+  LURL: string;
+begin
+  LURL := GetURL(AURL);
+  Result := inherited Put(LURL, '', ASource, AResponse, rtJSON);
 end;
 
 procedure TXEROApiJSON.SetBaseURL(const Value: string);

@@ -2,7 +2,7 @@ object frmXERODemo: TfrmXERODemo
   Left = 0
   Top = 0
   Caption = 'delphiXERO Demo'
-  ClientHeight = 498
+  ClientHeight = 569
   ClientWidth = 852
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
@@ -11,40 +11,45 @@ object frmXERODemo: TfrmXERODemo
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  Position = poScreenCenter
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
   object PageControlMenu: TPageControl
     Left = 0
-    Top = 0
+    Top = 66
     Width = 852
-    Height = 498
-    ActivePage = tabAPI
+    Height = 503
+    ActivePage = tabAPISearch
     Align = alClient
-    TabOrder = 0
-    object tabAPI: TTabSheet
-      Caption = 'API'
-      object PageControlData: TPageControl
+    TabOrder = 1
+    OnChange = PageControlMenuChange
+    object tabAPISearch: TTabSheet
+      Caption = 'Search'
+      ExplicitHeight = 470
+      object PageControlSearchData: TPageControl
         AlignWithMargins = True
         Left = 3
         Top = 263
         Width = 838
-        Height = 204
+        Height = 209
         ActivePage = tabDataJSON
         Align = alClient
         TabOrder = 1
-        OnChange = PageControlDataChange
+        ExplicitHeight = 204
         object tabDataJSON: TTabSheet
           Caption = 'JSON'
+          ExplicitHeight = 176
           object memoJSON: TMemo
             Left = 0
             Top = 41
             Width = 830
-            Height = 135
+            Height = 140
             Align = alClient
             ScrollBars = ssBoth
             TabOrder = 1
+            ExplicitHeight = 135
           end
           object Panel16: TPanel
             Left = 0
@@ -78,42 +83,8 @@ object frmXERODemo: TfrmXERODemo
             end
           end
         end
-        object tabLog: TTabSheet
-          Caption = 'Log'
-          ImageIndex = 1
-          object Panel13: TPanel
-            Left = 0
-            Top = 0
-            Width = 830
-            Height = 41
-            Align = alTop
-            BevelOuter = bvNone
-            TabOrder = 0
-            object btnRefreshLog: TButton
-              AlignWithMargins = True
-              Left = 3
-              Top = 3
-              Width = 75
-              Height = 35
-              Align = alLeft
-              Caption = 'Refresh'
-              TabOrder = 0
-              OnClick = btnRefreshLogClick
-            end
-          end
-          object memoLog: TMemo
-            AlignWithMargins = True
-            Left = 3
-            Top = 44
-            Width = 824
-            Height = 129
-            Align = alClient
-            TabOrder = 1
-            WordWrap = False
-          end
-        end
       end
-      object PageControlMain: TPanel
+      object pnlAPISearch: TPanel
         AlignWithMargins = True
         Left = 3
         Top = 3
@@ -164,7 +135,7 @@ object frmXERODemo: TfrmXERODemo
             object editPage: TEdit
               AlignWithMargins = True
               Left = 3
-              Top = 19
+              Top = 22
               Width = 131
               Height = 21
               Align = alTop
@@ -193,7 +164,7 @@ object frmXERODemo: TfrmXERODemo
             object editOrderBy: TEdit
               AlignWithMargins = True
               Left = 3
-              Top = 19
+              Top = 22
               Width = 131
               Height = 21
               Align = alTop
@@ -206,7 +177,7 @@ object frmXERODemo: TfrmXERODemo
           Top = 0
           Width = 838
           Height = 189
-          ActivePage = tabContacts
+          ActivePage = tabCustomSearch
           Align = alClient
           MultiLine = True
           TabOrder = 0
@@ -243,7 +214,7 @@ object frmXERODemo: TfrmXERODemo
                 object editContactsContactID: TEdit
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 131
                   Height = 21
                   Align = alTop
@@ -271,7 +242,7 @@ object frmXERODemo: TfrmXERODemo
                 object editContactsContactNumber: TEdit
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 131
                   Height = 21
                   Align = alTop
@@ -348,12 +319,11 @@ object frmXERODemo: TfrmXERODemo
                 object editInvoicesInvoiceNumber: TEdit
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 131
                   Height = 21
                   Align = alTop
                   TabOrder = 0
-                  ExplicitLeft = 6
                 end
               end
               object Panel11: TPanel
@@ -377,7 +347,7 @@ object frmXERODemo: TfrmXERODemo
                 object editInvoicesInvoiceID: TEdit
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 131
                   Height = 21
                   Align = alTop
@@ -398,8 +368,6 @@ object frmXERODemo: TfrmXERODemo
           object tabCustomSearch: TTabSheet
             Caption = 'Custom'
             ImageIndex = 4
-            ExplicitLeft = 42
-            ExplicitTop = 5
             object Panel17: TPanel
               Left = 0
               Top = 0
@@ -408,7 +376,6 @@ object frmXERODemo: TfrmXERODemo
               Align = alTop
               BevelOuter = bvNone
               TabOrder = 0
-              ExplicitTop = 4
               object Panel18: TPanel
                 Left = 149
                 Top = 0
@@ -417,8 +384,6 @@ object frmXERODemo: TfrmXERODemo
                 Align = alClient
                 BevelOuter = bvNone
                 TabOrder = 1
-                ExplicitLeft = 500
-                ExplicitWidth = 300
                 object Label9: TLabel
                   AlignWithMargins = True
                   Left = 3
@@ -432,13 +397,12 @@ object frmXERODemo: TfrmXERODemo
                 object editSearchCustomParams: TEdit
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 635
                   Height = 21
                   Align = alTop
                   TabOrder = 0
                   Text = 'page=1'
-                  ExplicitWidth = 131
                 end
               end
               object Panel19: TPanel
@@ -462,13 +426,12 @@ object frmXERODemo: TfrmXERODemo
                 object editSearchCustomURL: TEdit
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 143
                   Height = 21
                   Align = alTop
                   TabOrder = 0
                   Text = 'Contacts'
-                  ExplicitWidth = 131
                 end
               end
             end
@@ -480,8 +443,6 @@ object frmXERODemo: TfrmXERODemo
               Align = alTop
               BevelOuter = bvNone
               TabOrder = 1
-              ExplicitLeft = 24
-              ExplicitTop = 133
               object Panel22: TPanel
                 Left = 0
                 Top = 0
@@ -503,12 +464,12 @@ object frmXERODemo: TfrmXERODemo
                 object editSearchCustomLastModified: TDateTimePicker
                   AlignWithMargins = True
                   Left = 3
-                  Top = 19
+                  Top = 22
                   Width = 143
                   Height = 21
                   Align = alTop
-                  Date = 43371.571546493050000000
-                  Time = 43371.571546493050000000
+                  Date = 43371.000000000000000000
+                  Time = 0.571546493047208100
                   ShowCheckbox = True
                   Checked = False
                   TabOrder = 0
@@ -519,9 +480,170 @@ object frmXERODemo: TfrmXERODemo
         end
       end
     end
+    object tabAPIStore: TTabSheet
+      Caption = 'Store'
+      ImageIndex = 5
+      ExplicitHeight = 470
+      object Panel21: TPanel
+        Left = 0
+        Top = 0
+        Width = 844
+        Height = 233
+        Align = alTop
+        TabOrder = 0
+        object Panel23: TPanel
+          AlignWithMargins = True
+          Left = 4
+          Top = 4
+          Width = 836
+          Height = 59
+          Align = alTop
+          BevelOuter = bvNone
+          TabOrder = 0
+          object btnStoreExecute: TButton
+            AlignWithMargins = True
+            Left = 758
+            Top = 3
+            Width = 75
+            Height = 53
+            Align = alRight
+            Caption = 'Execute'
+            TabOrder = 3
+            OnClick = btnStoreExecuteClick
+          end
+          object Panel24: TPanel
+            Left = 0
+            Top = 0
+            Width = 245
+            Height = 59
+            Align = alLeft
+            BevelOuter = bvNone
+            TabOrder = 0
+            object Label11: TLabel
+              AlignWithMargins = True
+              Left = 3
+              Top = 3
+              Width = 239
+              Height = 13
+              Align = alTop
+              Caption = 'Model'
+              ExplicitWidth = 28
+            end
+            object comboStoreModel: TComboBox
+              AlignWithMargins = True
+              Left = 3
+              Top = 22
+              Width = 239
+              Height = 21
+              Align = alTop
+              ItemIndex = 0
+              TabOrder = 0
+              Text = 'Accounts'
+              OnChange = comboStoreModelChange
+              Items.Strings = (
+                'Accounts'
+                'Contacts'
+                'Invoices')
+            end
+          end
+          object Panel25: TPanel
+            Left = 245
+            Top = 0
+            Width = 192
+            Height = 59
+            Align = alLeft
+            BevelOuter = bvNone
+            TabOrder = 1
+            object RadioGroupStoreMethod: TRadioGroup
+              AlignWithMargins = True
+              Left = 3
+              Top = 3
+              Width = 186
+              Height = 53
+              Align = alClient
+              Caption = 'Method'
+              Columns = 2
+              ItemIndex = 0
+              Items.Strings = (
+                'Post'
+                'Put')
+              TabOrder = 0
+            end
+          end
+          object Panel27: TPanel
+            Left = 437
+            Top = 0
+            Width = 318
+            Height = 59
+            Align = alClient
+            BevelOuter = bvNone
+            TabOrder = 2
+            object Label14: TLabel
+              AlignWithMargins = True
+              Left = 3
+              Top = 3
+              Width = 312
+              Height = 13
+              Align = alTop
+              Caption = 'GUID'
+              ExplicitWidth = 25
+            end
+            object editStoreGUID: TEdit
+              AlignWithMargins = True
+              Left = 3
+              Top = 22
+              Width = 312
+              Height = 21
+              Align = alTop
+              TabOrder = 0
+            end
+          end
+        end
+        object memoStoreJSON: TMemo
+          AlignWithMargins = True
+          Left = 4
+          Top = 69
+          Width = 836
+          Height = 160
+          Align = alClient
+          TabOrder = 1
+        end
+      end
+      object Panel26: TPanel
+        Left = 0
+        Top = 233
+        Width = 844
+        Height = 242
+        Align = alClient
+        BevelOuter = bvNone
+        TabOrder = 1
+        ExplicitHeight = 237
+        object Label13: TLabel
+          AlignWithMargins = True
+          Left = 3
+          Top = 3
+          Width = 838
+          Height = 13
+          Align = alTop
+          Caption = 'Response'
+          ExplicitWidth = 47
+        end
+        object memoStoreResponse: TMemo
+          AlignWithMargins = True
+          Left = 3
+          Top = 22
+          Width = 838
+          Height = 217
+          Align = alClient
+          TabOrder = 0
+          ExplicitHeight = 212
+        end
+      end
+    end
     object tabDataset: TTabSheet
       Caption = 'Dataset'
       ImageIndex = 1
+      ExplicitHeight = 470
       object Panel14: TPanel
         AlignWithMargins = True
         Left = 3
@@ -599,7 +721,7 @@ object frmXERODemo: TfrmXERODemo
         Left = 3
         Top = 142
         Width = 838
-        Height = 325
+        Height = 330
         Align = alClient
         DataSource = DataSourceDataset
         TabOrder = 1
@@ -610,136 +732,61 @@ object frmXERODemo: TfrmXERODemo
         TitleFont.Style = []
       end
     end
-    object tabOptions: TTabSheet
-      Caption = 'Options'
+    object tabLog: TTabSheet
+      Caption = 'Log'
       ImageIndex = 1
-      object PageControlOptions: TPageControl
+      ExplicitHeight = 470
+      object Panel13: TPanel
         Left = 0
         Top = 0
         Width = 844
-        Height = 470
-        ActivePage = tabConsumerDetails
-        Align = alClient
+        Height = 41
+        Align = alTop
+        BevelOuter = bvNone
         TabOrder = 0
-        object tabConsumerDetails: TTabSheet
-          Caption = 'Consumer Details'
-          object GroupBox2: TGroupBox
-            AlignWithMargins = True
-            Left = 3
-            Top = 3
-            Width = 830
-            Height = 436
-            Align = alClient
-            Caption = 'Consumer Details'
-            TabOrder = 0
-            object Label3: TLabel
-              Left = 12
-              Top = 24
-              Width = 69
-              Height = 13
-              Caption = 'Consumer Key'
-            end
-            object Label4: TLabel
-              Left = 139
-              Top = 24
-              Width = 82
-              Height = 13
-              Caption = 'Consumer Secret'
-            end
-            object lblFileName: TLabel
-              Left = 600
-              Top = 16
-              Width = 53
-              Height = 13
-              Cursor = crHandPoint
-              Alignment = taRightJustify
-              Caption = 'lblFileName'
-              Font.Charset = DEFAULT_CHARSET
-              Font.Color = clHighlight
-              Font.Height = -11
-              Font.Name = 'Tahoma'
-              Font.Style = [fsUnderline]
-              ParentFont = False
-              OnDblClick = lblFileNameDblClick
-            end
-            object lblInfo: TLabel
-              Left = 2
-              Top = 421
-              Width = 826
-              Height = 13
-              Align = alBottom
-              Alignment = taCenter
-              Caption = 'NOTE: Settings are not encrypted. This is a demo application.'
-              Font.Charset = DEFAULT_CHARSET
-              Font.Color = clRed
-              Font.Height = -11
-              Font.Name = 'Tahoma'
-              Font.Style = []
-              ParentFont = False
-              ExplicitWidth = 295
-            end
-            object editConsumerKey: TEdit
-              Left = 12
-              Top = 40
-              Width = 121
-              Height = 21
-              TabOrder = 0
-            end
-            object editConsumerSecret: TEdit
-              Left = 139
-              Top = 40
-              Width = 121
-              Height = 21
-              PasswordChar = '*'
-              TabOrder = 1
-            end
-          end
+        object btnRefreshLog: TButton
+          AlignWithMargins = True
+          Left = 3
+          Top = 3
+          Width = 75
+          Height = 35
+          Align = alLeft
+          Caption = 'Refresh'
+          TabOrder = 0
+          OnClick = btnRefreshLogClick
         end
-        object tabPublicKey: TTabSheet
-          Caption = 'Public Key'
-          ImageIndex = 1
-          object memoPublicKey: TMemo
-            AlignWithMargins = True
-            Left = 3
-            Top = 3
-            Width = 830
-            Height = 436
-            Align = alClient
-            TabOrder = 0
-          end
-        end
-        object tabPrivateKey: TTabSheet
-          Caption = 'Private Key'
-          ImageIndex = 2
-          object memoPrivateKey: TMemo
-            AlignWithMargins = True
-            Left = 3
-            Top = 3
-            Width = 830
-            Height = 436
-            Align = alClient
-            TabOrder = 0
-          end
-        end
+      end
+      object memoLog: TMemo
+        AlignWithMargins = True
+        Left = 3
+        Top = 44
+        Width = 838
+        Height = 428
+        Align = alClient
+        TabOrder = 1
+        WordWrap = False
+        ExplicitHeight = 423
       end
     end
     object tabAbout: TTabSheet
       Caption = 'About'
       ImageIndex = 2
+      ExplicitHeight = 470
       object GroupBox4: TGroupBox
         AlignWithMargins = True
         Left = 3
         Top = 3
         Width = 838
-        Height = 464
+        Height = 469
         Align = alClient
         Caption = 'About'
         TabOrder = 0
+        ExplicitHeight = 464
         object Image1: TImage
           Left = 2
           Top = 15
           Width = 179
-          Height = 447
+          Height = 452
           Align = alLeft
           Center = True
           Picture.Data = {
@@ -1144,7 +1191,7 @@ object frmXERODemo: TfrmXERODemo
           Left = 184
           Top = 18
           Width = 649
-          Height = 441
+          Height = 446
           Align = alClient
           Alignment = taCenter
           Lines.Strings = (
@@ -1183,12 +1230,128 @@ object frmXERODemo: TfrmXERODemo
           ReadOnly = True
           ScrollBars = ssVertical
           TabOrder = 0
+          ExplicitHeight = 441
         end
       end
     end
   end
+  object Panel28: TPanel
+    Left = 0
+    Top = 0
+    Width = 852
+    Height = 66
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 0
+    object btnAuthenticate: TButton
+      AlignWithMargins = True
+      Left = 418
+      Top = 3
+      Width = 114
+      Height = 60
+      Align = alRight
+      Caption = 'Authenticate'
+      TabOrder = 3
+      OnClick = btnAuthenticateClick
+      ExplicitLeft = 3
+    end
+    object Panel29: TPanel
+      Left = 535
+      Top = 0
+      Width = 317
+      Height = 66
+      Align = alRight
+      BevelOuter = bvNone
+      TabOrder = 2
+      ExplicitLeft = 120
+      object Label15: TLabel
+        AlignWithMargins = True
+        Left = 3
+        Top = 3
+        Width = 311
+        Height = 13
+        Align = alTop
+        Caption = 'Tenant'
+        ExplicitWidth = 34
+      end
+      object comboTenants: TComboBox
+        AlignWithMargins = True
+        Left = 3
+        Top = 22
+        Width = 311
+        Height = 21
+        Align = alTop
+        Style = csDropDownList
+        TabOrder = 0
+        ExplicitWidth = 215
+      end
+    end
+    object Panel30: TPanel
+      Left = 0
+      Top = 0
+      Width = 120
+      Height = 66
+      Align = alLeft
+      BevelOuter = bvNone
+      TabOrder = 0
+      ExplicitLeft = -19
+      ExplicitTop = 3
+      object Label3: TLabel
+        AlignWithMargins = True
+        Left = 3
+        Top = 3
+        Width = 114
+        Height = 13
+        Align = alTop
+        Caption = 'Client ID'
+        ExplicitLeft = 23
+        ExplicitWidth = 179
+      end
+      object editClientID: TEdit
+        AlignWithMargins = True
+        Left = 3
+        Top = 22
+        Width = 114
+        Height = 21
+        Align = alTop
+        PasswordChar = '*'
+        TabOrder = 0
+      end
+    end
+    object Panel31: TPanel
+      Left = 120
+      Top = 0
+      Width = 295
+      Height = 66
+      Align = alClient
+      BevelOuter = bvNone
+      TabOrder = 1
+      ExplicitLeft = 441
+      ExplicitWidth = 120
+      object Label4: TLabel
+        AlignWithMargins = True
+        Left = 3
+        Top = 3
+        Width = 289
+        Height = 13
+        Align = alTop
+        Caption = 'Scope'
+        ExplicitWidth = 29
+      end
+      object editScope: TEdit
+        AlignWithMargins = True
+        Left = 3
+        Top = 22
+        Width = 289
+        Height = 21
+        Align = alTop
+        TabOrder = 0
+        ExplicitWidth = 114
+      end
+    end
+  end
   object DataSourceDataset: TDataSource
-    Left = 44
-    Top = 352
+    Left = 36
+    Top = 444
   end
 end

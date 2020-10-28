@@ -100,9 +100,9 @@ end;
 procedure TXEROLog.Error(ASender: TObject; AMessage: string;
   AErrorCode: integer);
 begin
-{$IFDEF DEBUG}
-  OutputToDebugger('ERROR:' + IntToStr(AErrorCode) + ': ' + AMessage);
-{$ENDIF}
+  // {$IFDEF DEBUG}
+  // OutputToDebugger('ERROR:' + IntToStr(AErrorCode) + ': ' + AMessage);
+  // {$ENDIF}
 end;
 
 procedure TXEROLog.Log(ASender: TObject; AMessage: string);
@@ -118,6 +118,14 @@ end;
 procedure SetXEROLogClass(AXEROLogClass: TXEROLogClass);
 begin
   _XEROLogClass := AXEROLogClass;
+  try
+    if Assigned(_XEROLog) then
+    begin
+      FreeAndNil(_XEROLog);
+    end;
+  except
+    _XEROLog := nil;
+  end;
 end;
 
 function XEROLog: TXEROLog;
@@ -128,6 +136,10 @@ begin
     if Assigned(_XEROLogClass) then
     begin
       _XEROLog := _XEROLogClass.Create;
+    end
+    else
+    begin
+      _XEROLog := TXEROLog.Create;
     end;
   end;
   if Assigned(_XEROLog) then
@@ -135,5 +147,13 @@ begin
     Result := _XEROLog;
   end;
 end;
+
+initialization
+
+SetXEROLogClass(TXEROLog);
+
+finalization
+
+SetXEROLogClass(nil);
 
 end.
