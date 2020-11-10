@@ -14,7 +14,7 @@ const
   XERO_API_CONNECTION_URL = 'https://api.xero.com/connections';
   XERO_API_IDENTITY_DEFAULT_SCOPE =
     'openid profile email accounting.transactions accounting.contacts accounting.settings';
-  XERO_HTTP_SERVER_FIRST_PORT = 58985;
+  XERO_HTTP_SERVER_FIRST_PORT = 5885;
   XERO_HTTP_REDIRECT_ENDPOINT = '/xero';
   XERO_HTTP_MAX_RUN_MINUTES = 2;
 

@@ -62,7 +62,22 @@ contains
   XERO.Types in '..\..\source\XERO.Types.pas',
   XERO.Utils in '..\..\source\XERO.Utils.pas',
   XERO.VarUtil in '..\..\source\XERO.VarUtil.pas',
-  XERO.XMLParser in '..\..\source\XERO.XMLParser.pas';
+  XERO.XMLParser in '..\..\source\XERO.XMLParser.pas',
+  XERO.Account.Model in '..\..\source\models\XERO.Account.Model.pas',
+  XERO.Address.Model in '..\..\source\models\XERO.Address.Model.pas',
+  XERO.Contact.Model in '..\..\source\models\XERO.Contact.Model.pas',
+  XERO.CreditNote.Model in '..\..\source\models\XERO.CreditNote.Model.pas',
+  XERO.Invoice.Model in '..\..\source\models\XERO.Invoice.Model.pas',
+  XERO.Item.Model in '..\..\source\models\XERO.Item.Model.pas',
+  XERO.Model in '..\..\source\models\XERO.Model.pas',
+  XERO.Phone.Model in '..\..\source\models\XERO.Phone.Model.pas',
+  XERO.PurchaseOrder.Model in '..\..\source\models\XERO.PurchaseOrder.Model.pas',
+  XERO.Request.Model in '..\..\source\models\XERO.Request.Model.pas',
+  XERO.Response.Model in '..\..\source\models\XERO.Response.Model.pas',
+  XERO.Accounts in '..\..\source\modules\XERO.Accounts.pas',
+  XERO.Contacts in '..\..\source\modules\XERO.Contacts.pas',
+  XERO.Invoices in '..\..\source\modules\XERO.Invoices.pas',
+  XERO.Items in '..\..\source\modules\XERO.Items.pas';
 
 end.
 

@@ -27,7 +27,6 @@ object frmXERODemo: TfrmXERODemo
     OnChange = PageControlMenuChange
     object tabAPISearch: TTabSheet
       Caption = 'Search'
-      ExplicitHeight = 470
       object PageControlSearchData: TPageControl
         AlignWithMargins = True
         Left = 3
@@ -37,10 +36,8 @@ object frmXERODemo: TfrmXERODemo
         ActivePage = tabDataJSON
         Align = alClient
         TabOrder = 1
-        ExplicitHeight = 204
         object tabDataJSON: TTabSheet
           Caption = 'JSON'
-          ExplicitHeight = 176
           object memoJSON: TMemo
             Left = 0
             Top = 41
@@ -49,7 +46,6 @@ object frmXERODemo: TfrmXERODemo
             Align = alClient
             ScrollBars = ssBoth
             TabOrder = 1
-            ExplicitHeight = 135
           end
           object Panel16: TPanel
             Left = 0
@@ -483,7 +479,6 @@ object frmXERODemo: TfrmXERODemo
     object tabAPIStore: TTabSheet
       Caption = 'Store'
       ImageIndex = 5
-      ExplicitHeight = 470
       object Panel21: TPanel
         Left = 0
         Top = 0
@@ -617,7 +612,6 @@ object frmXERODemo: TfrmXERODemo
         Align = alClient
         BevelOuter = bvNone
         TabOrder = 1
-        ExplicitHeight = 237
         object Label13: TLabel
           AlignWithMargins = True
           Left = 3
@@ -636,14 +630,12 @@ object frmXERODemo: TfrmXERODemo
           Height = 217
           Align = alClient
           TabOrder = 0
-          ExplicitHeight = 212
         end
       end
     end
     object tabDataset: TTabSheet
       Caption = 'Dataset'
       ImageIndex = 1
-      ExplicitHeight = 470
       object Panel14: TPanel
         AlignWithMargins = True
         Left = 3
@@ -735,7 +727,6 @@ object frmXERODemo: TfrmXERODemo
     object tabLog: TTabSheet
       Caption = 'Log'
       ImageIndex = 1
-      ExplicitHeight = 470
       object Panel13: TPanel
         Left = 0
         Top = 0
@@ -765,13 +756,11 @@ object frmXERODemo: TfrmXERODemo
         Align = alClient
         TabOrder = 1
         WordWrap = False
-        ExplicitHeight = 423
       end
     end
     object tabAbout: TTabSheet
       Caption = 'About'
       ImageIndex = 2
-      ExplicitHeight = 470
       object GroupBox4: TGroupBox
         AlignWithMargins = True
         Left = 3
@@ -781,7 +770,6 @@ object frmXERODemo: TfrmXERODemo
         Align = alClient
         Caption = 'About'
         TabOrder = 0
-        ExplicitHeight = 464
         object Image1: TImage
           Left = 2
           Top = 15
@@ -1230,7 +1218,6 @@ object frmXERODemo: TfrmXERODemo
           ReadOnly = True
           ScrollBars = ssVertical
           TabOrder = 0
-          ExplicitHeight = 441
         end
       end
     end
@@ -1253,7 +1240,6 @@ object frmXERODemo: TfrmXERODemo
       Caption = 'Authenticate'
       TabOrder = 3
       OnClick = btnAuthenticateClick
-      ExplicitLeft = 3
     end
     object Panel29: TPanel
       Left = 535
@@ -1263,7 +1249,6 @@ object frmXERODemo: TfrmXERODemo
       Align = alRight
       BevelOuter = bvNone
       TabOrder = 2
-      ExplicitLeft = 120
       object Label15: TLabel
         AlignWithMargins = True
         Left = 3
@@ -1283,7 +1268,6 @@ object frmXERODemo: TfrmXERODemo
         Align = alTop
         Style = csDropDownList
         TabOrder = 0
-        ExplicitWidth = 215
       end
     end
     object Panel30: TPanel
@@ -1294,8 +1278,6 @@ object frmXERODemo: TfrmXERODemo
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 0
-      ExplicitLeft = -19
-      ExplicitTop = 3
       object Label3: TLabel
         AlignWithMargins = True
         Left = 3
@@ -1304,8 +1286,7 @@ object frmXERODemo: TfrmXERODemo
         Height = 13
         Align = alTop
         Caption = 'Client ID'
-        ExplicitLeft = 23
-        ExplicitWidth = 179
+        ExplicitWidth = 41
       end
       object editClientID: TEdit
         AlignWithMargins = True
@@ -1326,8 +1307,6 @@ object frmXERODemo: TfrmXERODemo
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 1
-      ExplicitLeft = 441
-      ExplicitWidth = 120
       object Label4: TLabel
         AlignWithMargins = True
         Left = 3
@@ -1346,7 +1325,6 @@ object frmXERODemo: TfrmXERODemo
         Height = 21
         Align = alTop
         TabOrder = 0
-        ExplicitWidth = 114
       end
     end
   end
