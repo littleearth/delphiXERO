@@ -52,7 +52,7 @@
         <SanitizedProjectName>XEROAPIDesign</SanitizedProjectName>
         <DCC_F>false</DCC_F>
         <DCC_E>false</DCC_E>
-        <DllSuffix>Sydney</DllSuffix>
+        <DllSuffix>Rio</DllSuffix>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <DCC_ImageBase>00400000</DCC_ImageBase>
@@ -139,7 +139,8 @@
                     <Source Name="MainSource">XEROAPIDesign.dpk</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\dclRaveSydney.bpl">Rave Reports 11.0 BEX Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k260.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp260.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>

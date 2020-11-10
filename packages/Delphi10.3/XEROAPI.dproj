@@ -1,12 +1,12 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{88F5D475-BAA0-47B7-A9C4-8E1C6B25B81F}</ProjectGuid>
-        <MainSource>XEROAPIDesign.dpk</MainSource>
+        <ProjectGuid>{7FAB9ADF-0CEE-486D-B431-640D7335390F}</ProjectGuid>
+        <MainSource>XEROAPI.dpk</MainSource>
         <Base>True</Base>
         <Config Condition="'$(Config)'==''">Release</Config>
-        <TargetedPlatforms>1</TargetedPlatforms>
+        <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Package</AppType>
-        <FrameworkType>None</FrameworkType>
+        <FrameworkType>VCL</FrameworkType>
         <ProjectVersion>19.1</ProjectVersion>
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
     </PropertyGroup>
@@ -34,6 +34,12 @@
         <Cfg_1>true</Cfg_1>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_1)'=='true') or '$(Cfg_1_Win64)'!=''">
+        <Cfg_1_Win64>true</Cfg_1_Win64>
+        <CfgParent>Cfg_1</CfgParent>
+        <Cfg_1>true</Cfg_1>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Debug' or '$(Cfg_2)'!=''">
         <Cfg_2>true</Cfg_2>
         <CfgParent>Base</CfgParent>
@@ -45,14 +51,20 @@
         <Cfg_2>true</Cfg_2>
         <Base>true</Base>
     </PropertyGroup>
+    <PropertyGroup Condition="('$(Platform)'=='Win64' and '$(Cfg_2)'=='true') or '$(Cfg_2_Win64)'!=''">
+        <Cfg_2_Win64>true</Cfg_2_Win64>
+        <CfgParent>Cfg_2</CfgParent>
+        <Cfg_2>true</Cfg_2>
+        <Base>true</Base>
+    </PropertyGroup>
     <PropertyGroup Condition="'$(Base)'!=''">
         <DCC_ExeOutput>..\..\..\..\Release\Executables</DCC_ExeOutput>
         <DCC_DcuOutput>..\..\build\lib\$(Platform)\$(Config)</DCC_DcuOutput>
         <DCC_K>false</DCC_K>
-        <SanitizedProjectName>XEROAPIDesign</SanitizedProjectName>
+        <SanitizedProjectName>XeroAPI</SanitizedProjectName>
         <DCC_F>false</DCC_F>
         <DCC_E>false</DCC_E>
-        <DllSuffix>Sydney</DllSuffix>
+        <DllSuffix>Rio</DllSuffix>
         <GenDll>true</GenDll>
         <GenPackage>true</GenPackage>
         <DCC_ImageBase>00400000</DCC_ImageBase>
@@ -61,22 +73,27 @@
         <DCC_S>false</DCC_S>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=;CFBundleName=</VerInfo_Keys>
         <DCC_N>false</DCC_N>
-        <DCC_UnitSearchPath>$(BDS)\source\ToolsAPI;..\..\source;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
+        <DCC_UnitSearchPath>$(BDS)\source\ToolsAPI;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <DCC_DependencyCheckOutputName>..\..\..\..\Release\Executables\XeroAPI_XE10_2.bpl</DCC_DependencyCheckOutputName>
         <DCC_Description>Little Earth Solutions Xero API</DCC_Description>
         <DCC_DcpOutput>..\..\build\dcp\$(Platform)\$(Config)</DCC_DcpOutput>
+        <RuntimeOnlyPackage>true</RuntimeOnlyPackage>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_Namespace>Data.Win;Datasnap.Win;Web.Win;Xml.Win;Bde;$(DCC_Namespace)</DCC_Namespace>
-        <DCC_UsePackage>xmlrtl;rtl;dbrtl;soaprtl;inet;IndySystem;IndyProtocols;IndyCore;dsnap;vcl;RESTComponents;XEROAPI;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_UsePackage>xmlrtl;rtl;dbrtl;soaprtl;inet;IndySystem;IndyProtocols;IndyCore;dsnap;vcl;RESTComponents;$(DCC_UsePackage)</DCC_UsePackage>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <PreLinkEventCancelOnError>false</PreLinkEventCancelOnError>
         <PreBuildEventCancelOnError>false</PreBuildEventCancelOnError>
         <PostBuildEventCancelOnError>false</PostBuildEventCancelOnError>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
-        <DCC_UsePackage>XEROAPI;$(DCC_UsePackage)</DCC_UsePackage>
+        <DCC_Namespace>Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
+        <BT_BuildType>Debug</BT_BuildType>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_LocalDebugSymbols>false</DCC_LocalDebugSymbols>
@@ -88,6 +105,12 @@
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <DCC_MapFile>3</DCC_MapFile>
+    </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <DCC_MapFile>3</DCC_MapFile>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_Optimize>false</DCC_Optimize>
@@ -101,11 +124,16 @@
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_MapFile>3</DCC_MapFile>
     </PropertyGroup>
+    <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
+        <DCC_MapFile>3</DCC_MapFile>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+    </PropertyGroup>
     <ItemGroup>
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="XeroApi.dcp"/>
         <DCCReference Include="rtl.dcp"/>
         <DCCReference Include="IndySystem.dcp"/>
         <DCCReference Include="IndyProtocols.dcp"/>
@@ -117,7 +145,25 @@
         <DCCReference Include="soaprtl.dcp"/>
         <DCCReference Include="vcl.dcp"/>
         <DCCReference Include="RESTComponents.dcp"/>
-        <DCCReference Include="..\..\source\XEROComponentRegister.pas"/>
+        <DCCReference Include="..\..\source\XERO.API.ClassInterface.pas"/>
+        <DCCReference Include="..\..\source\XERO.API.JSON.pas"/>
+        <DCCReference Include="..\..\source\XERO.API.pas"/>
+        <DCCReference Include="..\..\source\XERO.API.Response.JSON.pas"/>
+        <DCCReference Include="..\..\source\XERO.API.Response.Text.pas"/>
+        <DCCReference Include="..\..\source\XERO.API.Response.XML.pas"/>
+        <DCCReference Include="..\..\source\XERO.Authenticator.PKCE.pas"/>
+        <DCCReference Include="..\..\source\XERO.Constants.pas"/>
+        <DCCReference Include="..\..\source\XERO.HTTPServer.pas"/>
+        <DCCReference Include="..\..\source\XERO.ISO8601.pas"/>
+        <DCCReference Include="..\..\source\XERO.JSONSAX.pas"/>
+        <DCCReference Include="..\..\source\XERO.Log.Basic.pas"/>
+        <DCCReference Include="..\..\source\XERO.Log.pas"/>
+        <DCCReference Include="..\..\source\XERO.MiscUtil.pas"/>
+        <DCCReference Include="..\..\source\XERO.PKCE.pas"/>
+        <DCCReference Include="..\..\source\XERO.Types.pas"/>
+        <DCCReference Include="..\..\source\XERO.Utils.pas"/>
+        <DCCReference Include="..\..\source\XERO.VarUtil.pas"/>
+        <DCCReference Include="..\..\source\XERO.XMLParser.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -136,15 +182,16 @@
         <BorlandProject>
             <Delphi.Personality>
                 <Source>
-                    <Source Name="MainSource">XEROAPIDesign.dpk</Source>
+                    <Source Name="MainSource">XEROAPI.dpk</Source>
                 </Source>
                 <Excluded_Packages>
-                    <Excluded_Packages Name="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\dclRaveSydney.bpl">Rave Reports 11.0 BEX Package</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dcloffice2k260.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="$(BDSBIN)\dclofficexp260.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>
                 <Platform value="Win32">True</Platform>
-                <Platform value="Win64">False</Platform>
+                <Platform value="Win64">True</Platform>
             </Platforms>
             <Deployment Version="3">
                 <DeployFile LocalName="$(BDS)\Redist\osx32\libcgunwind.1.0.dylib" Class="DependencyModule">
@@ -162,15 +209,15 @@
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\XEROAPIDesign_Sydney.bpl" Configuration="Release" Class="ProjectOutput">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\XEROAPI_Sydney.bpl" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>XEROAPIDesign.bpl</RemoteName>
+                        <RemoteName>XEROAPI.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\20.0\Bpl\XEROAPIDesign.bpl" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="C:\Users\Public\Documents\Embarcadero\Studio\21.0\Bpl\XEROAPISydney.bpl" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>XEROAPIDesign.bpl</RemoteName>
+                        <RemoteName>XEROAPI.bpl</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
@@ -1111,8 +1158,8 @@
                         <Operation>1</Operation>
                     </Platform>
                 </DeployClass>
-                <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="Win64" Name="$(PROJECTNAME)"/>
+                <ProjectRoot Platform="iOSDevice64" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="iOSDevice32" Name="$(PROJECTNAME).app"/>
                 <ProjectRoot Platform="Win32" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="Linux64" Name="$(PROJECTNAME)"/>
