@@ -176,6 +176,7 @@ type
     function UpdateTenants(var AMessage: string): Boolean; virtual;
     function GetAuthenticated: Boolean; virtual;
     procedure SetDefaultProperties; virtual;
+    function GetBusy: Boolean; virtual;
     procedure InternalTimerEvent; virtual;
     function RefreshAccessToken(var AMessage: string): Boolean; virtual;
   public
@@ -188,6 +189,7 @@ type
     property Tenants: TXEROTenants read GetXEROTenants;
   published
     property Authenticated: Boolean read GetAuthenticated;
+    property Busy: Boolean read GetBusy;
     property Expirydate: TDateTime read GetExpiryDate;
     property OnAuthenticationComplete: TXEROOnAuthenticationComplete
       read FOnAuthenticationComplete write SetOnAuthenticationComplete;
@@ -402,7 +404,7 @@ uses
   IdIOHandlerStack,
 
   // XERO
-  XERO.Utils,  XERO.VarUtil;
+  XERO.Utils, XERO.VarUtil;
 
 // TXEROAppDetails
 
@@ -1675,6 +1677,11 @@ end;
 function TXEROAuthenticatorBase.GetAuthenticated: Boolean;
 begin
   Result := FXEROAccessToken.IsValid;
+end;
+
+function TXEROAuthenticatorBase.GetBusy: Boolean;
+begin
+  Result := false;
 end;
 
 function TXEROAuthenticatorBase.GetExpiryDate: TDateTime;

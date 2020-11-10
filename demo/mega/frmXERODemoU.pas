@@ -279,10 +279,21 @@ end;
 procedure TfrmXERODemo.btnAuthenticateClick(Sender: TObject);
 begin
   ApplySettings;
-  if not FXEROAuthenticatorPKCE.Authenticated then
+  if (not FXEROAuthenticatorPKCE.Authenticated) then
   begin
-    FXEROAuthenticatorPKCE.Login;
-  end
+    if (not FXEROAuthenticatorPKCE.Busy) then
+    begin
+      FXEROAuthenticatorPKCE.Login;
+    end
+    else
+    begin
+      if MessageDlg('Authentication already in progress, cancel request?',
+        mtConfirmation,[mbYes, mbNo], 0) = mrYes then
+      begin
+        FXEROAuthenticatorPKCE.CancelAuthenticationRequest;
+      end;
+    end;
+  end;
 end;
 
 procedure TfrmXERODemo.btnJSONClearClick(Sender: TObject);

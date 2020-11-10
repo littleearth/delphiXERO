@@ -46,6 +46,7 @@ type
       ARedirectURI: string): boolean;
     procedure Authenticate; override;
     procedure SetDefaultProperties; override;
+    function GetBusy: boolean; override;
     procedure GenerateCodeVerifier; virtual;
     procedure GenerateRandomState; virtual;
     function GenerateLoginURL: string; virtual;
@@ -257,6 +258,11 @@ begin
     FreeAndNil(LParams);
     FreeAndNil(LPostStream)
   end;
+end;
+
+function TXEROAuthenticatorPKCE.GetBusy: boolean;
+begin
+  Result := FAuthRequestACtive;
 end;
 
 function TXEROAuthenticatorPKCE.GetCodeChallenge: string;
