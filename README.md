@@ -5,7 +5,8 @@ XERO accounting API for Delphi
 
 Supports Delphi Sydney
 
-* Older versions may work but this has not been tested.
+* Older versions may work but this has not been tested
+* RIO: Testing in RIO so far has not worked, OAuth2 authentication would fail, possibly in CodeChallenge generation 
 
 > This is a work in progress so design and requirements may change.
 
