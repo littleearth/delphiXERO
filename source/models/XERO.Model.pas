@@ -249,6 +249,7 @@ type
     property XEROModelJSONMarshallerClass: TXEROModelJSONMarshallerClass
       read FXEROModelJSONMarshallerClass write SetXEROModelJSONMarshallerClass;
 
+
     function GetAsJSON(AFormat: Boolean): string; virtual;
     procedure SetFromJSON(AJSON: string); virtual;
     procedure LoadDataset(ADataset: TDataSet); virtual;

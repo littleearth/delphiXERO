@@ -21,7 +21,7 @@ object frmXERODemo: TfrmXERODemo
     Top = 66
     Width = 852
     Height = 503
-    ActivePage = tabAPISearch
+    ActivePage = tabDataset
     Align = alClient
     TabOrder = 1
     OnChange = PageControlMenuChange
@@ -173,7 +173,7 @@ object frmXERODemo: TfrmXERODemo
           Top = 0
           Width = 838
           Height = 189
-          ActivePage = tabCustomSearch
+          ActivePage = tabInvoices
           Align = alClient
           MultiLine = True
           TabOrder = 0
@@ -645,6 +645,7 @@ object frmXERODemo: TfrmXERODemo
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 0
+        ExplicitTop = 211
         object GroupBoxJSONDatasetType: TGroupBox
           AlignWithMargins = True
           Left = 556

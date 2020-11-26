@@ -67,6 +67,7 @@ type
     FLineAmountTypes: string;
     FDueDate: TDate;
     FReference: string;
+    FFullyPaidOnDate: TDate;
     procedure SetAmountDue(const Value: single);
     procedure SetAmountPaid(const Value: single);
     procedure SetDate(const Value: TDate);
@@ -78,6 +79,7 @@ type
     procedure SetReference(const Value: string);
     procedure SetStatus(const Value: string);
     procedure SetSubTotal(const Value: single);
+    procedure SetFullyPaidOnDate(const Value: TDate);
   public
     class function GetInvoiceStatus(AInvoiceStatus: TXEROInvoiceStatus)
       : string; static;
@@ -98,6 +100,8 @@ type
     property Reference: string read FReference write SetReference;
     property AmountDue: single read FAmountDue write SetAmountDue;
     property AmountPaid: single read FAmountPaid write SetAmountPaid;
+    property FullyPaidOnDate: TDate read FFullyPaidOnDate
+      write SetFullyPaidOnDate;
   end;
 
   TXMInvoices = TXEROModelList<TXMInvoice>;
@@ -176,6 +180,11 @@ end;
 procedure TXMInvoice.SetDueDate(const Value: TDate);
 begin
   FDueDate := Value;
+end;
+
+procedure TXMInvoice.SetFullyPaidOnDate(const Value: TDate);
+begin
+  FFullyPaidOnDate := Value;
 end;
 
 procedure TXMInvoice.SetInvoiceID(const Value: string);

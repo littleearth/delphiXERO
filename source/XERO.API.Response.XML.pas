@@ -6,14 +6,12 @@ uses
   XERO.API, XERO.Types;
 
 type
-  TXEROResponseXML = class(TXEROResponseBase)
+  TXEROResponseXML = class(TXEROHTTPResponse)
   protected
     function GetDefaultResponseType: TResponseType; override;
   end;
 
 implementation
-
-{ TXEROResponseXML }
 
 { TXEROResponseXML }
 

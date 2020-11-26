@@ -40,24 +40,14 @@ var
   LXEROFilter: TXEROFilter;
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROAccountResponse.Create;
   LXEROFilter := TXEROFilter.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
     LXEROFilter.AddGUIDToFilter('AccountID', AAccountID);
     LXEROFilter.AddToFilter('Code', ACode);
-    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
-      APage, ALastModified) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROAccountException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified);
+    Result := LXEROResponseJSON.ToResponse<TXEROAccountResponse>;
   finally
     FreeAndNil(LXEROFilter);
     FreeAndNil(LXEROResponseJSON);

@@ -161,7 +161,7 @@ uses
   System.IniFiles, System.DateUtils, XERO.Utils,
   XERO.Log, XERO.Log.Basic,
   XERO.Response.Model, XERO.Request.Model,
-  XERO.Contacts, XERO.Contacts.Dataset, XERO.API.JSON,
+  XERO.Contacts, XERO.API.JSON,
   XERO.Items,
   XERO.Accounts,
   XERO.Invoices;
@@ -288,7 +288,7 @@ begin
     else
     begin
       if MessageDlg('Authentication already in progress, cancel request?',
-        mtConfirmation,[mbYes, mbNo], 0) = mrYes then
+        mtConfirmation, [mbYes, mbNo], 0) = mrYes then
       begin
         FXEROAuthenticatorPKCE.CancelAuthenticationRequest;
       end;
@@ -373,25 +373,10 @@ begin
 end;
 
 procedure TfrmXERODemo.CreateDataset;
-var
-  LResponse: TXEROResponse;
 begin
   DestroyDataset;
-  if Pos('"Contacts"', memoDatasetJSON.Text) > 0 then
-  begin
-    LResponse := TXEROContactResponse.Create;
-    try
-      LResponse.FromJSON(memoDatasetJSON.Text);
 
-      with FDatasetList.Add<TXEROContactDataset>(TXEROContactDataset.Create) do
-      begin
-        StoreModelList((LResponse as TXEROContactResponse).Contacts);
-        DataSourceDataset.Dataset := Dataset;
-      end;
-    finally
-      FreeAndNil(LResponse);
-    end;
-  end;
+  DataSourceDataset.Dataset := FDatasetList.AddJSON(memoDatasetJSON.Text);
 
   if Assigned(DataSourceDataset.Dataset) then
   begin

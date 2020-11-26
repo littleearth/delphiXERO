@@ -6,6 +6,9 @@
         <Projects Include="XEROAPI.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="XEROAPIDatasets.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="XEROAPIDesign.dproj">
             <Dependencies/>
         </Projects>
@@ -26,6 +29,15 @@
     <Target Name="XEROAPI:Make">
         <MSBuild Projects="XEROAPI.dproj" Targets="Make"/>
     </Target>
+    <Target Name="XEROAPIDatasets">
+        <MSBuild Projects="XEROAPIDatasets.dproj"/>
+    </Target>
+    <Target Name="XEROAPIDatasets:Clean">
+        <MSBuild Projects="XEROAPIDatasets.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="XEROAPIDatasets:Make">
+        <MSBuild Projects="XEROAPIDatasets.dproj" Targets="Make"/>
+    </Target>
     <Target Name="XEROAPIDesign">
         <MSBuild Projects="XEROAPIDesign.dproj"/>
     </Target>
@@ -36,13 +48,13 @@
         <MSBuild Projects="XEROAPIDesign.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="XEROAPI;XEROAPIDesign"/>
+        <CallTarget Targets="XEROAPI;XEROAPIDatasets;XEROAPIDesign"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="XEROAPI:Clean;XEROAPIDesign:Clean"/>
+        <CallTarget Targets="XEROAPI:Clean;XEROAPIDatasets:Clean;XEROAPIDesign:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="XEROAPI:Make;XEROAPIDesign:Make"/>
+        <CallTarget Targets="XEROAPI:Make;XEROAPIDatasets:Make;XEROAPIDesign:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

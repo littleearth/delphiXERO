@@ -49,7 +49,6 @@ var
   LXEROFilter: TXEROFilter;
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROContactResponse.Create;
   LXEROFilter := TXEROFilter.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
@@ -58,24 +57,14 @@ begin
     LXEROFilter.AddToFilter('IDs', AIDList);
     if AIncludeArchived then
       LXEROFilter.AddToFilter('includeArchived', 'true');
-    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
-      APage, ALastModified) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROContactException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified);
+    Result := LXEROResponseJSON.ToResponse<TXEROContactResponse>;
   finally
     FreeAndNil(LXEROFilter);
     FreeAndNil(LXEROResponseJSON);
   end;
 end;
-
 
 function TXEROContacts.GetAPIURL: string;
 begin

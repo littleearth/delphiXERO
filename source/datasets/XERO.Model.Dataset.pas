@@ -16,7 +16,9 @@ uses
 type
   EXERODatasetException = class(EXEROException);
 
-  TXEROModelDataset<T: TXEROModel> = class(TXEROObject)
+  TXEROModelDatasetBase = class(TXEROObject);
+
+  TXEROModelDataset<T: TXEROModel> = class(TXEROModelDatasetBase)
   private
     FDataset: TFDMemTable;
     function GetDataset: TDataset;
@@ -28,6 +30,10 @@ type
     procedure CreateIndexFields; virtual;
     procedure CreateFields; virtual;
     procedure StoreCustomFields(ADataset: TDataset); virtual;
+    procedure AfterStoreModel(ADataset: TDataset; AModel: TXEROModel); virtual;
+    procedure AfterOpen; virtual;
+    procedure AfterClose; virtual;
+    procedure AfterClear; virtual;
     function GetIndexFields: string; virtual;
   public
     constructor Create;
@@ -42,18 +48,22 @@ type
 
   TXEROModelDatasets = class(TXEROObject)
   private
-    FList: TList;
+    FList: TObjectList<TXEROModelDatasetBase>;
   public
     constructor Create;
-    destructor Destroy;
-    function Add<T: TXEROObject>(AXEROModelDataset: TXEROObject): T;
+    destructor Destroy; override;
+    function Add<T: TXEROModelDatasetBase>(AXEROModelDataset
+      : TXEROModelDatasetBase): T;
+    function AddJSON(AJSON: string): TDataset;
     procedure Clear;
   end;
 
 implementation
 
 uses
-  XERO.Utils;
+  XERO.Utils, XERO.Response.Model,
+  XERO.Contacts, XERO.Contacts.Dataset,
+  XERO.Invoices, XERO.Invoices.Dataset;
 
 { TXEROModelDataset }
 
@@ -70,12 +80,34 @@ begin
   FDataset.FieldDefs.Add(AFieldName, AFieldType, LSize);
 end;
 
+procedure TXEROModelDataset<T>.AfterClear;
+begin
+
+end;
+
+procedure TXEROModelDataset<T>.AfterClose;
+begin
+
+end;
+
+procedure TXEROModelDataset<T>.AfterOpen;
+begin
+
+end;
+
+procedure TXEROModelDataset<T>.AfterStoreModel(ADataset: TDataset;
+  AModel: TXEROModel);
+begin
+
+end;
+
 procedure TXEROModelDataset<T>.Clear;
 begin
   if FDataset.Active then
   begin
     FDataset.EmptyDataSet;
   end;
+  AfterClear;
 end;
 
 procedure TXEROModelDataset<T>.Close;
@@ -83,6 +115,7 @@ begin
   Clear;
   FDataset.Active := False;
   FDataset.FieldDefs.Clear;
+  AfterClose;
 end;
 
 constructor TXEROModelDataset<T>.Create;
@@ -153,6 +186,7 @@ begin
   begin
     FDataset.CreateDataSet;
     FDataset.Active := True;
+    AfterOpen;
   end;
 end;
 
@@ -176,6 +210,7 @@ begin
       FDataset.Cancel;
       raise;
     end;
+    AfterStoreModel(FDataset, AModel);
   end;
 end;
 
@@ -187,32 +222,63 @@ begin
   begin
     StoreModel(LModel);
   end;
-  FDataset.First;
+  if FDataset.Active then
+    FDataset.First;
 end;
 
 { TXEROModelDatasets }
 
-function TXEROModelDatasets.Add<T>(AXEROModelDataset: TXEROObject): T;
+function TXEROModelDatasets.Add<T>(AXEROModelDataset: TXEROModelDatasetBase): T;
 begin
-  Result := AXEROModelDataset as T;
-  FList.Add(@Result);
+  FList.Add(AXEROModelDataset);
+end;
+
+function TXEROModelDatasets.AddJSON(AJSON: string): TDataset;
+var
+  LResponse: TXEROResponse;
+begin
+  Result := nil;
+  if (Pos('"Contacts"', AJSON) > 0) and (not Assigned(Result)) then
+  begin
+    LResponse := TXEROContactResponse.Create;
+    try
+      LResponse.FromJSON(AJSON);
+
+      with Add<TXEROContactDataset>(TXEROContactDataset.Create) do
+      begin
+        StoreModelList((LResponse as TXEROContactResponse).Contacts);
+        Result := Dataset;
+      end;
+    finally
+      FreeAndNil(LResponse);
+    end;
+  end;
+
+  if (Pos('"Invoices"', AJSON) > 0) and (not Assigned(Result)) then
+  begin
+    LResponse := TXEROInvoiceResponse.Create;
+    try
+      LResponse.FromJSON(AJSON);
+
+      with Add<TXEROInvoicesDataset>(TXEROInvoicesDataset.Create) do
+      begin
+        StoreModelList((LResponse as TXEROInvoiceResponse).Invoices);
+        Result := Dataset;
+      end;
+    finally
+      FreeAndNil(LResponse);
+    end;
+  end;
 end;
 
 procedure TXEROModelDatasets.Clear;
 begin
-  while FList.Count > 0 do
-  begin
-    try
-      try
-        TObject(FList.Items[0]^).Free;
-      except
-        on E: Exception do
-        begin
-          Warning(Format('Failed to remove dataset, Error: %s', [E.Message]));
-        end;
-      end;
-    finally
-      FList.Delete(0);
+  try
+    FList.Clear;
+  except
+    on E: Exception do
+    begin
+      Error(E);
     end;
   end;
 end;
@@ -220,7 +286,7 @@ end;
 constructor TXEROModelDatasets.Create;
 begin
   inherited;
-  FList := TList.Create;
+  FList := TObjectList<TXEROModelDatasetBase>.Create;
 end;
 
 destructor TXEROModelDatasets.Destroy;

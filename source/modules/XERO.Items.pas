@@ -19,7 +19,6 @@ type
     property Items: TXMItems read FItems;
   end;
 
-
   TXEROItems = class(TXEROAPI)
   private
   protected
@@ -40,24 +39,14 @@ var
   LXEROFilter: TXEROFilter;
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROItemResponse.Create;
   LXEROFilter := TXEROFilter.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
     LXEROFilter.AddGUIDToFilter('ContactID', AItemID);
     LXEROFilter.AddToFilter('Code', ACode);
-    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
-      APage, ALastModified) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROContactException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified);
+    Result := LXEROResponseJSON.ToResponse<TXEROItemResponse>;
   finally
     FreeAndNil(LXEROFilter);
     FreeAndNil(LXEROResponseJSON);

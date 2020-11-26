@@ -44,24 +44,14 @@ var
   LXEROFilter: TXEROFilter;
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROInvoiceResponse.Create;
   LXEROFilter := TXEROFilter.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
     LXEROFilter.AddGUIDToFilter('InvoiceID', AInvoiceID);
     LXEROFilter.AddToFilter('InvoiceNumber', AInvoiceNumber);
-    if Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
-      APage, ALastModified) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROInvoiceException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
+      APage, ALastModified);
+    Result := LXEROResponseJSON.ToResponse<TXEROInvoiceResponse>;
   finally
     FreeAndNil(LXEROFilter);
     FreeAndNil(LXEROResponseJSON);
@@ -72,21 +62,11 @@ function TXEROInvoices.Update(AInvoices: TXMInvoices): TXEROInvoiceResponse;
 var
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROInvoiceResponse.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
-    if Post<TXEROResponseJSON>(AInvoices.AsJSONArray('Invoices'),
-      LXEROResponseJSON) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROInvoiceException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Post<TXEROResponseJSON>(AInvoices.AsJSONArray('Invoices'),
+      LXEROResponseJSON);
+    Result := LXEROResponseJSON.ToResponse<TXEROInvoiceResponse>;
   finally
     FreeAndNil(LXEROResponseJSON);
   end;
@@ -96,20 +76,10 @@ function TXEROInvoices.Update(AInvoice: TXMInvoice): TXEROInvoiceResponse;
 var
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROInvoiceResponse.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
-    if Post<TXEROResponseJSON>(AInvoice.AsJSON, LXEROResponseJSON) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROInvoiceException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Post<TXEROResponseJSON>(AInvoice.AsJSON, LXEROResponseJSON);
+    Result := LXEROResponseJSON.ToResponse<TXEROInvoiceResponse>;
   finally
     FreeAndNil(LXEROResponseJSON);
   end;
@@ -124,21 +94,11 @@ function TXEROInvoices.Insert(AInvoices: TXMInvoices): TXEROInvoiceResponse;
 var
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROInvoiceResponse.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
-    if Put<TXEROResponseJSON>(AInvoices.AsJSONArray('Invoices'),
-      LXEROResponseJSON) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROInvoiceException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Put<TXEROResponseJSON>(AInvoices.AsJSONArray('Invoices'),
+      LXEROResponseJSON);
+    Result := LXEROResponseJSON.ToResponse<TXEROInvoiceResponse>;
   finally
     FreeAndNil(LXEROResponseJSON);
   end;
@@ -148,20 +108,10 @@ function TXEROInvoices.Insert(AInvoice: TXMInvoice): TXEROInvoiceResponse;
 var
   LXEROResponseJSON: TXEROResponseJSON;
 begin
-  Result := TXEROInvoiceResponse.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
-    if Put<TXEROResponseJSON>(AInvoice.AsJSON, LXEROResponseJSON) then
-    begin
-      if LXEROResponseJSON.Result then
-      begin
-        Result.FromJSON(LXEROResponseJSON.AsString);
-      end
-      else
-      begin
-        raise EXEROInvoiceException.Create(LXEROResponseJSON.ErrorMessage);
-      end;
-    end;
+    Put<TXEROResponseJSON>(AInvoice.AsJSON, LXEROResponseJSON);
+    Result := LXEROResponseJSON.ToResponse<TXEROInvoiceResponse>;
   finally
     FreeAndNil(LXEROResponseJSON);
   end;

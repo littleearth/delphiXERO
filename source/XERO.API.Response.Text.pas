@@ -6,7 +6,7 @@ uses
   XERO.API;
 
 type
-  TXEROResponseText = class(TXEROResponseBase)
+  TXEROResponseText = class(TXEROHTTPResponse)
   public
     property ResponseType;
   end;

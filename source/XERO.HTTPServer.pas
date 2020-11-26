@@ -83,10 +83,46 @@ end;
 
 function TXEROHTTPServer.GenerateBasicHTMLMessage(ATitle,
   AMessage: string): string;
+var
+  LHTML: TStringList;
 begin
-  Result := Format
-    ('<!DOCTYPE html><html><body><center><h1>%s</h1><p>%s</p></center></body></html>',
-    [ATitle, AMessage]);
+  LHTML := TStringList.Create;
+  try
+
+    LHTML.Add('<!DOCTYPE html>');
+    LHTML.Add('<html lang="en">');
+
+    LHTML.Add('<meta charset="utf-8">');
+    LHTML.Add(
+      '<meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">');
+    LHTML.Add(
+      '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.5.3/dist/css/bootstrap.min.css" integrity="sha384-TX8t27EcRE3e/ihU7zmQxVncDAy5uIKz4rEkgIXeMed4M0jlfIDPvg6uqKI2xXr2" crossorigin="anonymous">');
+    LHTML.Add('');
+    LHTML.Add('<title>' + ATitle + '</title>');
+
+    LHTML.Add('<body>');
+
+    LHTML.Add('<main role="main">');
+
+    LHTML.Add('<section class="jumbotron text-center">');
+    LHTML.Add('<div class="container">');
+    LHTML.Add('<h1>' + ATitle + '</h1>');
+    LHTML.Add('<p class="lead text-muted">' + AMessage + '</p>');
+    LHTML.Add('<p>');
+    LHTML.Add(
+      '<a href="https://go.xero.com/" class="btn btn-primary my-2">Continue to Xero</a>');
+    LHTML.Add('</p>');
+    LHTML.Add('</div>');
+    LHTML.Add('</section>');
+
+    LHTML.Add('</main>');
+
+    LHTML.Add('</body>');
+
+    Result := LHTML.Text;
+  finally
+    FreeAndNil(LHTML);
+  end;
 end;
 
 function TXEROHTTPServer.GetServerAddress: string;
@@ -150,7 +186,7 @@ begin
   FPort := FindAvailablePort(AWebServerPortFirst, 2);
   try
     FIdHTTPServer.Bindings.Clear;
-    LBind := FIdHTTPServer.Bindings.ADd;
+    LBind := FIdHTTPServer.Bindings.Add;
     LBind.IP := '127.0.0.1';
     LBind.Port := FPort;
     FIdHTTPServer.Active := True;
@@ -199,7 +235,7 @@ begin
   begin
     try
       Self.Bindings.Clear;
-      LBind := Self.Bindings.ADd;
+      LBind := Self.Bindings.Add;
       LBind.IP := '127.0.0.1';
       LBind.Port := Result;
       Self.Active := True;
