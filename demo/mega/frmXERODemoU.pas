@@ -37,7 +37,6 @@ type
     btnSearch: TButton;
     Panel4: TPanel;
     Label1: TLabel;
-    editPage: TEdit;
     Panel6: TPanel;
     Label5: TLabel;
     editOrderBy: TEdit;
@@ -83,20 +82,9 @@ type
     editSearchCustomLastModified: TDateTimePicker;
     tabAPIStore: TTabSheet;
     Panel21: TPanel;
-    Panel23: TPanel;
-    btnStoreExecute: TButton;
-    Panel24: TPanel;
-    Label11: TLabel;
-    Panel25: TPanel;
-    comboStoreModel: TComboBox;
-    RadioGroupStoreMethod: TRadioGroup;
-    memoStoreJSON: TMemo;
     Panel26: TPanel;
     Label13: TLabel;
     memoStoreResponse: TMemo;
-    Panel27: TPanel;
-    Label14: TLabel;
-    editStoreGUID: TEdit;
     Panel28: TPanel;
     btnAuthenticate: TButton;
     Panel29: TPanel;
@@ -108,6 +96,58 @@ type
     Panel31: TPanel;
     Label4: TLabel;
     editScope: TEdit;
+    tabOptions: TTabSheet;
+    GroupBox1: TGroupBox;
+    cbUnitDP4: TCheckBox;
+    tabPurchaseOrders: TTabSheet;
+    Panel32: TPanel;
+    Panel33: TPanel;
+    Label16: TLabel;
+    editPurchaseOrdersPurchaseOrderNumber: TEdit;
+    Panel34: TPanel;
+    Label17: TLabel;
+    editPurchaseOrdersPurchaseOrderID: TEdit;
+    Panel35: TPanel;
+    tabTrackingCategory: TTabSheet;
+    Panel36: TPanel;
+    Panel38: TPanel;
+    Label19: TLabel;
+    editTrackingCategoryID: TEdit;
+    Panel37: TPanel;
+    Label18: TLabel;
+    editTrackingCategoryName: TEdit;
+    PageControlStore: TPageControl;
+    tabStoreCustom: TTabSheet;
+    memoStoreJSON: TMemo;
+    Panel23: TPanel;
+    btnStoreExecute: TButton;
+    Panel24: TPanel;
+    Label11: TLabel;
+    comboStoreModel: TComboBox;
+    Panel25: TPanel;
+    RadioGroupStoreMethod: TRadioGroup;
+    Panel27: TPanel;
+    Label14: TLabel;
+    editStoreGUID: TEdit;
+    tabStoreTrackingCategory: TTabSheet;
+    Panel39: TPanel;
+    Panel40: TPanel;
+    Label20: TLabel;
+    Label21: TLabel;
+    editStoreTrackingOptionTrackingCategoryID: TEdit;
+    Panel41: TPanel;
+    Label22: TLabel;
+    editStoreTrackingOptionName: TEdit;
+    btnStoreTrackingCategoryOption: TButton;
+    Panel42: TPanel;
+    Label23: TLabel;
+    Panel44: TPanel;
+    Label25: TLabel;
+    editStoreTrackingCategoryName: TEdit;
+    btnStoreTrackingCategory: TButton;
+    editPage: TSpinEdit;
+    Panel43: TPanel;
+    cbSearchInvoicesSummaryOnly: TCheckBox;
     procedure btnAPIJSONCopyClick(Sender: TObject);
     procedure btnAPIJsonToDatasetClick(Sender: TObject);
     procedure btnAuthenticateClick(Sender: TObject);
@@ -118,6 +158,8 @@ type
     procedure FormDestroy(Sender: TObject);
     procedure btnSearchClick(Sender: TObject);
     procedure btnStoreExecuteClick(Sender: TObject);
+    procedure btnStoreTrackingCategoryClick(Sender: TObject);
+    procedure btnStoreTrackingCategoryOptionClick(Sender: TObject);
     procedure comboStoreModelChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure PageControlMenuChange(Sender: TObject);
@@ -146,6 +188,10 @@ type
     procedure Put(AURL, AJSON: string);
     procedure OnXEROAuthenticationURL(ASender: TObject; AURL: string);
     procedure OnXEROAuthenticationComplete(ASender: TObject; ASuccess: Boolean);
+    procedure SearchPurchaseOrders;
+    procedure SearchTrackingCategory;
+    procedure StoreTrackingCategoryOption;
+    procedure StoreTrackingCategory;
   public
     { Public declarations }
   end;
@@ -164,7 +210,9 @@ uses
   XERO.Contacts, XERO.API.JSON,
   XERO.Items,
   XERO.Accounts,
-  XERO.Invoices;
+  XERO.PurchaseOrders,
+  XERO.Invoices,
+  XERO.TrackingCategory;
 
 procedure TfrmXERODemo.OnXEROAuthenticationURL(ASender: TObject; AURL: string);
 begin
@@ -242,7 +290,7 @@ end;
 
 function TfrmXERODemo.GetPage: integer;
 begin
-  Result := StrToIntDef(editPage.Text, 0);
+  Result := editPage.Value;
 end;
 
 function TfrmXERODemo.GetStoreModel(AModel: string): string;
@@ -261,6 +309,7 @@ end;
 procedure TfrmXERODemo.ApplySettings;
 begin
   FXEROAppDetails.ClientID := editClientID.Text;
+  FXEROAppDetails.UnitDP4 := cbUnitDP4.Checked;
   FXEROAuthenticatorPKCE.Scope := editScope.Text;
 end;
 
@@ -344,7 +393,16 @@ begin
     begin
       SearchCustom;
     end;
+    if PageControlSearch.ActivePage = tabPurchaseOrders then
+    begin
+      SearchPurchaseOrders;
+    end;
+    if PageControlSearch.ActivePage = tabTrackingCategory then
+    begin
+      SearchTrackingCategory;
+    end;
   end;
+
 end;
 
 procedure TfrmXERODemo.btnStoreExecuteClick(Sender: TObject);
@@ -353,17 +411,35 @@ var
 begin
   ApplySettings;
   LURL := comboStoreModel.Text;
+  if not IsEmptyString(editStoreGUID.Text) then
+    LURL := LURL + '/' + editStoreGUID.Text;
   case RadioGroupStoreMethod.ItemIndex of
     0:
       begin
-        if not IsEmptyString(editStoreGUID.Text) then
-          LURL := LURL + '/' + editStoreGUID.Text;
         Post(LURL, memoStoreJSON.Text);
       end;
   else
     begin
       Put(LURL, memoStoreJSON.Text);
     end;
+  end;
+end;
+
+procedure TfrmXERODemo.btnStoreTrackingCategoryClick(Sender: TObject);
+begin
+  ApplySettings;
+  if FXEROAuthenticatorPKCE.Authenticated then
+  begin
+    StoreTrackingCategory;
+  end;
+end;
+
+procedure TfrmXERODemo.btnStoreTrackingCategoryOptionClick(Sender: TObject);
+begin
+  ApplySettings;
+  if FXEROAuthenticatorPKCE.Authenticated then
+  begin
+    StoreTrackingCategoryOption;
   end;
 end;
 
@@ -430,6 +506,7 @@ begin
   PageControlMenu.ActivePageIndex := 0;
   PageControlSearch.ActivePageIndex := 0;
   PageControlSearchData.ActivePageIndex := 0;
+  PageControlStore.ActivePageIndex := 0;
   FSettingsFileName := GetUserAppDataDir + 'settings.ini';
   FDatasetList := TXEROModelDatasets.Create;
   comboStoreModelChange(Sender);
@@ -583,8 +660,76 @@ begin
     LAPI.XEROAppDetails := FXEROAppDetails;
     LAPI.TenantId := GetTenant;
     LData := LAPI.Search(GetPage, GetOrderBy, editInvoicesInvoiceID.Text,
-      editInvoicesInvoiceNumber.Text);
+      editInvoicesInvoiceNumber.Text, 0, cbSearchInvoicesSummaryOnly.Checked);
     memoJSON.Text := LData.AsJSON(True);
+  finally
+    FreeAndNil(LAPI);
+  end;
+end;
+
+procedure TfrmXERODemo.SearchPurchaseOrders;
+var
+  LAPI: TXEROPurchaseOrders;
+  LData: TXEROPurchaseOrderResponse;
+begin
+  LAPI := TXEROPurchaseOrders.Create(nil);
+  try
+    LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
+    LData := LAPI.Search(GetPage, GetOrderBy,
+      editPurchaseOrdersPurchaseOrderID.Text,
+      editPurchaseOrdersPurchaseOrderNumber.Text);
+    memoJSON.Text := LData.AsJSON(True);
+  finally
+    FreeAndNil(LAPI);
+  end;
+end;
+
+procedure TfrmXERODemo.SearchTrackingCategory;
+var
+  LAPI: TXEROTrackingCategory;
+  LData: TXEROTrackingCategoriesResponse;
+begin
+  LAPI := TXEROTrackingCategory.Create(nil);
+  try
+    LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
+    LData := LAPI.Search(GetOrderBy, editTrackingCategoryName.Text,
+      editTrackingCategoryID.Text);
+    memoJSON.Text := LData.AsJSON(True);
+  finally
+    FreeAndNil(LAPI);
+  end;
+end;
+
+procedure TfrmXERODemo.StoreTrackingCategory;
+var
+  LAPI: TXEROTrackingCategory;
+  LData: TXEROTrackingCategoryResponse;
+begin
+  LAPI := TXEROTrackingCategory.Create(nil);
+  try
+    LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
+    LData := LAPI.AddCategory(editStoreTrackingCategoryName.Text);
+    memoStoreResponse.Text := LData.AsJSON(True);
+  finally
+    FreeAndNil(LAPI);
+  end;
+end;
+
+procedure TfrmXERODemo.StoreTrackingCategoryOption;
+var
+  LAPI: TXEROTrackingCategory;
+  LData: TXEROTrackingOptionsResponse;
+begin
+  LAPI := TXEROTrackingCategory.Create(nil);
+  try
+    LAPI.XEROAppDetails := FXEROAppDetails;
+    LAPI.TenantId := GetTenant;
+    LData := LAPI.AddOption(editStoreTrackingOptionTrackingCategoryID.Text,
+      editStoreTrackingOptionName.Text);
+    memoStoreResponse.Text := LData.AsJSON(True);
   finally
     FreeAndNil(LAPI);
   end;

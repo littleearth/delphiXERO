@@ -210,8 +210,8 @@ function TXEROAuthenticatorPKCE.GenerateLoginURL: string;
 begin
   Result := format
     ('%sconnect/authorize?response_type=code&code_challenge_method=S256&client_id=%s&scope=%s&redirect_uri=%s&state=%s&code_challenge=%s',
-    [XERO_API_IDENTITY_URL, XEROAppDetails.ClientID, Scope, GetRedirectURI,
-    State, CodeChallenge]);
+    [XERO_API_LOGIN_URL, XEROAppDetails.ClientID, Scope, GetRedirectURI, State,
+    CodeChallenge]);
 end;
 
 function TXEROAuthenticatorPKCE.GetAccessToken(var AMessage: string;
@@ -224,7 +224,7 @@ begin
   Result := False;
   AMessage := '';
   LParams := TStringList.Create;
-  LPostStream := TStringStream.Create;
+  LPostStream := TStringStream.Create('', TEncoding.UTF8);
   try
     LParams.Add('grant_type=authorization_code');
     LParams.Add('&client_id=' + XEROAppDetails.ClientID);

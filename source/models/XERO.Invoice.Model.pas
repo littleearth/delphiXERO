@@ -3,7 +3,8 @@ unit XERO.Invoice.Model;
 interface
 
 uses
-  Classes, SysUtils, XERO.Model, XERO.Contact.Model;
+  Classes, SysUtils, XERO.Model, XERO.Contact.Model,
+  XERO.TrackingCategory.Model;
 
 type
 
@@ -14,11 +15,13 @@ type
 
   TXMInvoiceLineItem = class(TXeroModel)
   private
+    [XEROModelManagedAttribute]
+    FXMTrackingCategories: TXMLineItemTrackingCategories;
     FAccountCode: string;
-    FLineAmount: single;
-    FTaxAmount: single;
+    FLineAmount: currency;
+    FTaxAmount: currency;
     FTaxType: string;
-    FUnitAmount: single;
+    FUnitAmount: currency;
     FQuantity: single;
     FDescription: string;
     FLineItemID: string;
@@ -28,24 +31,24 @@ type
     procedure SetDescription(const Value: string);
     procedure SetDiscountRate(const Value: string);
     procedure SetItemCode(const Value: string);
-    procedure SetLineAmount(const Value: single);
+    procedure SetLineAmount(const Value: currency);
     procedure SetLineItemID(const Value: string);
     procedure SetQuantity(const Value: single);
-    procedure SetTaxAmount(const Value: single);
+    procedure SetTaxAmount(const Value: currency);
     procedure SetTaxType(const Value: string);
-    procedure SetUnitAmount(const Value: single);
+    procedure SetUnitAmount(const Value: currency);
   public
     property Description: string read FDescription write SetDescription;
     property Quantity: single read FQuantity write SetQuantity;
-    property UnitAmount: single read FUnitAmount write SetUnitAmount;
+    property UnitAmount: currency read FUnitAmount write SetUnitAmount;
     property ItemCode: string read FItemCode write SetItemCode;
     property AccountCode: string read FAccountCode write SetAccountCode;
     property LineItemID: string read FLineItemID write SetLineItemID;
     property TaxType: string read FTaxType write SetTaxType;
-    property TaxAmount: single read FTaxAmount write SetTaxAmount;
-    property LineAmount: single read FLineAmount write SetLineAmount;
+    property TaxAmount: currency read FTaxAmount write SetTaxAmount;
+    property LineAmount: currency read FLineAmount write SetLineAmount;
     property DiscountRate: string read FDiscountRate write SetDiscountRate;
-    // property Tracking;
+    property Tracking: TXMLineItemTrackingCategories read FXMTrackingCategories;
   end;
 
   TXMInvoiceLineItems = TXEROModelList<TXMInvoiceLineItem>;
@@ -57,9 +60,9 @@ type
     [XEROModelManagedAttribute]
     FXMInvoiceLineItems: TXMInvoiceLineItems;
     FDate: TDate;
-    FAmountPaid: single;
-    FSubTotal: single;
-    FAmountDue: single;
+    FAmountPaid: currency;
+    FSubTotal: currency;
+    FAmountDue: currency;
     FInvoiceID: string;
     FInvoiceNumber: string;
     FStatus: string;
@@ -68,8 +71,10 @@ type
     FDueDate: TDate;
     FReference: string;
     FFullyPaidOnDate: TDate;
-    procedure SetAmountDue(const Value: single);
-    procedure SetAmountPaid(const Value: single);
+    FTotalTax: currency;
+    FTotal: currency;
+    procedure SetAmountDue(const Value: currency);
+    procedure SetAmountPaid(const Value: currency);
     procedure SetDate(const Value: TDate);
     procedure SetDueDate(const Value: TDate);
     procedure SetInvoiceID(const Value: string);
@@ -78,8 +83,10 @@ type
     procedure SetLineAmountTypes(const Value: string);
     procedure SetReference(const Value: string);
     procedure SetStatus(const Value: string);
-    procedure SetSubTotal(const Value: single);
+    procedure SetSubTotal(const Value: currency);
     procedure SetFullyPaidOnDate(const Value: TDate);
+    procedure SetTotal(const Value: currency);
+    procedure SetTotalTax(const Value: currency);
   public
     class function GetInvoiceStatus(AInvoiceStatus: TXEROInvoiceStatus)
       : string; static;
@@ -94,12 +101,14 @@ type
     property LineAmountTypes: string read FLineAmountTypes
       write SetLineAmountTypes;
     property LineItems: TXMInvoiceLineItems read FXMInvoiceLineItems;
-    property SubTotal: single read FSubTotal write SetSubTotal;
+    property SubTotal: currency read FSubTotal write SetSubTotal;
+    property TotalTax: currency read FTotalTax write SetTotalTax;
+    property Total: currency read FTotal write SetTotal;
     property InvoiceID: string read FInvoiceID write SetInvoiceID;
     property InvoiceNumber: string read FInvoiceNumber write SetInvoiceNumber;
     property Reference: string read FReference write SetReference;
-    property AmountDue: single read FAmountDue write SetAmountDue;
-    property AmountPaid: single read FAmountPaid write SetAmountPaid;
+    property AmountDue: currency read FAmountDue write SetAmountDue;
+    property AmountPaid: currency read FAmountPaid write SetAmountPaid;
     property FullyPaidOnDate: TDate read FFullyPaidOnDate
       write SetFullyPaidOnDate;
   end;
@@ -130,7 +139,7 @@ begin
   FItemCode := Value;
 end;
 
-procedure TXMInvoiceLineItem.SetLineAmount(const Value: single);
+procedure TXMInvoiceLineItem.SetLineAmount(const Value: currency);
 begin
   FLineAmount := Value;
 end;
@@ -145,7 +154,7 @@ begin
   FQuantity := Value;
 end;
 
-procedure TXMInvoiceLineItem.SetTaxAmount(const Value: single);
+procedure TXMInvoiceLineItem.SetTaxAmount(const Value: currency);
 begin
   FTaxAmount := Value;
 end;
@@ -155,19 +164,19 @@ begin
   FTaxType := Value;
 end;
 
-procedure TXMInvoiceLineItem.SetUnitAmount(const Value: single);
+procedure TXMInvoiceLineItem.SetUnitAmount(const Value: currency);
 begin
   FUnitAmount := Value;
 end;
 
 { TXMInvoice }
 
-procedure TXMInvoice.SetAmountDue(const Value: single);
+procedure TXMInvoice.SetAmountDue(const Value: currency);
 begin
   FAmountDue := Value;
 end;
 
-procedure TXMInvoice.SetAmountPaid(const Value: single);
+procedure TXMInvoice.SetAmountPaid(const Value: currency);
 begin
   FAmountPaid := Value;
 end;
@@ -217,9 +226,19 @@ begin
   FStatus := Value;
 end;
 
-procedure TXMInvoice.SetSubTotal(const Value: single);
+procedure TXMInvoice.SetSubTotal(const Value: currency);
 begin
   FSubTotal := Value;
+end;
+
+procedure TXMInvoice.SetTotal(const Value: currency);
+begin
+  FTotal := Value;
+end;
+
+procedure TXMInvoice.SetTotalTax(const Value: currency);
+begin
+  FTotalTax := Value;
 end;
 
 class function TXMInvoice.GetInvoiceStatus(AInvoiceStatus

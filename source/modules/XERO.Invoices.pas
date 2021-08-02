@@ -26,7 +26,8 @@ type
   public
     function Search(APage: Integer = 0; AOrderBy: string = '';
       AInvoiceID: string = ''; AInvoiceNumber: string = '';
-      ALastModified: TDateTime = 0): TXEROInvoiceResponse;
+      ALastModified: TDateTime = 0; ASummaryOnly: boolean = false)
+      : TXEROInvoiceResponse;
     function Insert(AInvoices: TXMInvoices): TXEROInvoiceResponse; overload;
     function Insert(AInvoice: TXMInvoice): TXEROInvoiceResponse; overload;
     function Update(AInvoices: TXMInvoices): TXEROInvoiceResponse; overload;
@@ -38,19 +39,23 @@ implementation
 { TXEROInvoices }
 
 function TXEROInvoices.Search(APage: Integer;
-  AOrderBy, AInvoiceID, AInvoiceNumber: string; ALastModified: TDateTime)
-  : TXEROInvoiceResponse;
+  AOrderBy, AInvoiceID, AInvoiceNumber: string; ALastModified: TDateTime;
+  ASummaryOnly: boolean): TXEROInvoiceResponse;
 var
   LXEROFilter: TXEROFilter;
   LXEROResponseJSON: TXEROResponseJSON;
+  LParams: string;
 begin
   LXEROFilter := TXEROFilter.Create;
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
+    LParams := '';
+    if ASummaryOnly then
+      LParams := 'summaryOnly=True';
     LXEROFilter.AddGUIDToFilter('InvoiceID', AInvoiceID);
     LXEROFilter.AddToFilter('InvoiceNumber', AInvoiceNumber);
     Find<TXEROResponseJSON>(LXEROResponseJSON, LXEROFilter.Text, AOrderBy,
-      APage, ALastModified);
+      APage, ALastModified, LParams);
     Result := LXEROResponseJSON.ToResponse<TXEROInvoiceResponse>;
   finally
     FreeAndNil(LXEROFilter);

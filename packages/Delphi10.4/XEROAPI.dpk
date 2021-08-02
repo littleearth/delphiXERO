@@ -74,10 +74,13 @@ contains
   XERO.PurchaseOrder.Model in '..\..\source\models\XERO.PurchaseOrder.Model.pas',
   XERO.Request.Model in '..\..\source\models\XERO.Request.Model.pas',
   XERO.Response.Model in '..\..\source\models\XERO.Response.Model.pas',
+  XERO.TrackingCategory.Model in '..\..\source\models\XERO.TrackingCategory.Model.pas',
   XERO.Accounts in '..\..\source\modules\XERO.Accounts.pas',
   XERO.Contacts in '..\..\source\modules\XERO.Contacts.pas',
   XERO.Invoices in '..\..\source\modules\XERO.Invoices.pas',
-  XERO.Items in '..\..\source\modules\XERO.Items.pas';
+  XERO.Items in '..\..\source\modules\XERO.Items.pas',
+  XERO.PurchaseOrders in '..\..\source\modules\XERO.PurchaseOrders.pas',
+  XERO.TrackingCategory in '..\..\source\modules\XERO.TrackingCategory.pas';
 
 end.
 

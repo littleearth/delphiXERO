@@ -50,6 +50,8 @@ requires
 contains
   XERO.Contacts.Dataset in '..\..\source\datasets\XERO.Contacts.Dataset.pas',
   XERO.Invoices.Dataset in '..\..\source\datasets\XERO.Invoices.Dataset.pas',
-  XERO.Model.Dataset in '..\..\source\datasets\XERO.Model.Dataset.pas';
+  XERO.Model.Dataset in '..\..\source\datasets\XERO.Model.Dataset.pas',
+  XERO.PurchaseOrders.Dataset in '..\..\source\datasets\XERO.PurchaseOrders.Dataset.pas',
+  XERO.TrackingCategory.Dataset in '..\..\source\datasets\XERO.TrackingCategory.Dataset.pas';
 
 end.

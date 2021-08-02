@@ -221,6 +221,7 @@ type
     FXEROModelJSONMarshallerClass: TXEROModelJSONMarshallerClass;
     [JSONMarshalledAttribute(false)]
     FXEROModelDatasetMarshallerClass: TXEROModelDatasetMarshallerClass;
+    FInternalID: string;
     procedure SetDirty(const Value: Boolean);
     procedure SetDirtyTimeStamp(const Value: TDateTime);
     procedure SetLoaded(const Value: Boolean);
@@ -232,6 +233,7 @@ type
       : TXEROModelDateTimeHelperClass);
     procedure SetXEROModelJSONMarshallerClass(const Value
       : TXEROModelJSONMarshallerClass);
+    procedure SetInternalID(const Value: string);
   protected
     [JSONMarshalledAttribute(false)]
     property _Dirty: Boolean read FDirty write SetDirty;
@@ -248,7 +250,6 @@ type
     [JSONMarshalledAttribute(false)]
     property XEROModelJSONMarshallerClass: TXEROModelJSONMarshallerClass
       read FXEROModelJSONMarshallerClass write SetXEROModelJSONMarshallerClass;
-
 
     function GetAsJSON(AFormat: Boolean): string; virtual;
     procedure SetFromJSON(AJSON: string); virtual;
@@ -285,6 +286,8 @@ type
     property Loaded: Boolean read FLoaded write SetLoaded;
     [XEROModelIgnoreAttribute]
     property Modified: Boolean read GetModified write SetModified;
+    [XEROModelIgnoreAttribute]
+    property InternalID: string read FInternalID write SetInternalID;
   end;
 
   TXEROModelList<T: TXEROModel> = class(TXEROObject)
@@ -345,9 +348,8 @@ var
 implementation
 
 uses
-  System.StrUtils, XERO.Utils, XERO.MiscUtil,
-  System.IOUtils, System.DateUtils,
-  REST.JsonReflect;
+  System.StrUtils, XERO.Utils, XERO.MiscUtil, System.IOUtils, System.DateUtils,
+  REST.JsonReflect, System.Math;
 
 function TXEROModelList<T>.GetList: TObjectList<T>;
 begin
@@ -486,7 +488,7 @@ var
   LJSON: string;
 begin
   Self.Clear;
-  if not IsEmptyString(AJSON) then
+  if not IsEmptyString(AJSON) and (not SameText('null', AJSON)) then
   begin
     LJsonArr := GetJSONArray(AJSON);
     if Assigned(LJsonArr) then
@@ -619,7 +621,6 @@ begin
   FList.Clear;
 end;
 
-
 function TXEROModelList<T>.AsJSON(AFormat: Boolean): string;
 begin
   try
@@ -632,7 +633,7 @@ end;
 
 function TXEROModelList<T>.AsJSONArray(AName: string; AFormat: Boolean): string;
 begin
-   try
+  try
     Result := GetAsJSON(AName);
   finally
     if AFormat then
@@ -722,6 +723,11 @@ end;
 procedure TXEROModel.SetFromJSON(AJSON: string);
 begin
   XEROModelJSONMarshallerClass.Deserialize(AJSON, Self);
+end;
+
+procedure TXEROModel.SetInternalID(const Value: string);
+begin
+  FInternalID := Value;
 end;
 
 procedure TXEROModel.LoadDataset(ADataset: TDataSet);
@@ -2259,6 +2265,7 @@ function TXEROModelJSONMarshaller.DoSerializePropertyInternal
   (AProp: TRttiProperty): TJSONValue;
 var
   LDateTime: TDateTime;
+  LExtended: Extended;
   LValue: string;
   LHandled: Boolean;
 begin
@@ -2312,7 +2319,9 @@ begin
   if not LHandled then
     if (AProp.PropertyType.TypeKind in [tkFloat]) then
     begin
-      Result := TJSONNumber.Create(AProp.GetValue(Model).AsExtended);
+      LExtended := AProp.GetValue(Model).AsExtended;
+      LExtended := RoundTo(LExtended, -4);
+      Result := TJSONNumber.Create(LExtended);
       LHandled := true;
     end;
 
@@ -2520,7 +2529,7 @@ var
   LJSONPair: TJSONPair;
 begin
   Model.Reset;
-  if IsEmptyString(AJSON) then
+  if IsEmptyString(AJSON) or SameText('null', AJSON) then
   begin
     Exit;
   end;
@@ -2582,9 +2591,12 @@ begin
           end
           else
           begin
-            Error(SysUtils.Format
+{$IFDEF DEBUG}
+            Debug('DoDeserialize',
+              SysUtils.Format
               ('Failed to get property, check your property case %s (PropertyName: %s)',
               [LPRopertyName, LProp.Name]));
+{$ENDIF}
           end;
         end;
 

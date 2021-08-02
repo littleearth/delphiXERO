@@ -3,7 +3,8 @@ unit XERO.PurchaseOrder.Model;
 interface
 
 uses
-  Classes, SysUtils, XERO.Model, XERO.Contact.Model;
+  Classes, SysUtils, XERO.Model, XERO.Contact.Model,
+  XERO.TrackingCategory.Model;
 
 type
 
@@ -12,6 +13,8 @@ type
 
   TXMPurchaseOrderLineItem = class(TXeroModel)
   private
+    [XEROModelManagedAttribute]
+    FXMTrackingCategories: TXMLineItemTrackingCategories;
     FAccountCode: string;
     FLineAmount: single;
     FTaxAmount: single;
@@ -22,6 +25,7 @@ type
     FLineItemID: string;
     FItemCode: string;
     FDiscountRate: string;
+    FReference: string;
     procedure SetAccountCode(const Value: string);
     procedure SetDescription(const Value: string);
     procedure SetDiscountRate(const Value: string);
@@ -32,6 +36,7 @@ type
     procedure SetTaxAmount(const Value: single);
     procedure SetTaxType(const Value: string);
     procedure SetUnitAmount(const Value: single);
+    procedure SetReference(const Value: string);
   public
     property Description: string read FDescription write SetDescription;
     property Quantity: single read FQuantity write SetQuantity;
@@ -43,7 +48,8 @@ type
     property TaxAmount: single read FTaxAmount write SetTaxAmount;
     property LineAmount: single read FLineAmount write SetLineAmount;
     property DiscountRate: string read FDiscountRate write SetDiscountRate;
-    // property Tracking;
+    property Reference: string read FReference write SetReference;
+    property Tracking: TXMLineItemTrackingCategories read FXMTrackingCategories;
   end;
 
   TXMPurchaseOrderLineItems = TXEROModelList<TXMPurchaseOrderLineItem>;
@@ -70,7 +76,7 @@ type
     FTotalTax: single;
     FCurrencyCode: string;
     FTotal: single;
-    FSentToContact: boolean;
+    FSentToContact: string;
     FHasAttachments: boolean;
     FCurrencyRate: single;
     procedure SetDate(const Value: TDate);
@@ -89,13 +95,13 @@ type
     procedure SetCurrencyCode(const Value: string);
     procedure SetTotal(const Value: single);
     procedure SetTotalTax(const Value: single);
-    procedure SetSentToContact(const Value: boolean);
+    procedure SetSentToContact(const Value: string);
     procedure SetHasAttachments(const Value: boolean);
     procedure SetCurrencyRate(const Value: single);
   public
     class function GetPurchaseOrderStatus(APurchaseOrderStatus
       : TXEROPurchaseOrderStatus): string; static;
-    property PurchaseOrderId: string read FPurchaseOrderID
+    property PurchaseOrderID: string read FPurchaseOrderID
       write SetPurchaseOrderID;
     property Contact: TXMContact read FXMContact;
     property Date: TDate read FDate write SetDate;
@@ -121,7 +127,7 @@ type
       write SetDeliveryInstructions;
     property ExpectedArrivalDate: TDate read FExpectedArrivalDate
       write SetExpectedArrivalDate;
-    property SentToContact: boolean read FSentToContact write SetSentToContact;
+    property SentToContact: string read FSentToContact write SetSentToContact;
     property HasAttachments: boolean read FHasAttachments
       write SetHasAttachments;
   end;
@@ -165,6 +171,11 @@ end;
 procedure TXMPurchaseOrderLineItem.SetQuantity(const Value: single);
 begin
   FQuantity := Value;
+end;
+
+procedure TXMPurchaseOrderLineItem.SetReference(const Value: string);
+begin
+  FReference := Value;
 end;
 
 procedure TXMPurchaseOrderLineItem.SetTaxAmount(const Value: single);
@@ -249,7 +260,7 @@ begin
   FReference := Value;
 end;
 
-procedure TXMPurchaseOrder.SetSentToContact(const Value: boolean);
+procedure TXMPurchaseOrder.SetSentToContact(const Value: string);
 begin
   FSentToContact := Value;
 end;

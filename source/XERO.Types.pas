@@ -10,7 +10,8 @@ uses
 
 const
   XERO_API_BASE_URL = 'https://api.xero.com/api.xro/2.0/';
-  XERO_API_IDENTITY_URL = 'https://login.xero.com/identity/';
+  XERO_API_LOGIN_URL = 'https://login.xero.com/identity/';
+  XERO_API_IDENTITY_URL = 'https://identity.xero.com/';
   XERO_API_CONNECTION_URL = 'https://api.xero.com/connections';
   XERO_API_IDENTITY_DEFAULT_SCOPE =
     'openid profile email accounting.transactions accounting.contacts accounting.settings';

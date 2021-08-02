@@ -21,7 +21,7 @@ object frmXERODemo: TfrmXERODemo
     Top = 66
     Width = 852
     Height = 503
-    ActivePage = tabDataset
+    ActivePage = tabAPIStore
     Align = alClient
     TabOrder = 1
     OnChange = PageControlMenuChange
@@ -128,15 +128,17 @@ object frmXERODemo: TfrmXERODemo
               Caption = 'Page'
               ExplicitWidth = 24
             end
-            object editPage: TEdit
+            object editPage: TSpinEdit
               AlignWithMargins = True
               Left = 3
               Top = 22
               Width = 131
-              Height = 21
+              Height = 22
               Align = alTop
+              MaxValue = 0
+              MinValue = 0
               TabOrder = 0
-              Text = '0'
+              Value = 0
             end
           end
           object Panel6: TPanel
@@ -173,7 +175,7 @@ object frmXERODemo: TfrmXERODemo
           Top = 0
           Width = 838
           Height = 189
-          ActivePage = tabInvoices
+          ActivePage = tabContacts
           Align = alClient
           MultiLine = True
           TabOrder = 0
@@ -184,7 +186,7 @@ object frmXERODemo: TfrmXERODemo
             object Panel2: TPanel
               Left = 0
               Top = 0
-              Width = 790
+              Width = 750
               Height = 49
               Align = alTop
               BevelOuter = bvNone
@@ -268,7 +270,7 @@ object frmXERODemo: TfrmXERODemo
             object Panel3: TPanel
               Left = 0
               Top = 49
-              Width = 790
+              Width = 750
               Height = 49
               Align = alTop
               BevelOuter = bvNone
@@ -289,7 +291,7 @@ object frmXERODemo: TfrmXERODemo
             object Panel9: TPanel
               Left = 0
               Top = 0
-              Width = 790
+              Width = 750
               Height = 49
               Align = alTop
               BevelOuter = bvNone
@@ -358,6 +360,29 @@ object frmXERODemo: TfrmXERODemo
                 Align = alLeft
                 BevelOuter = bvNone
                 TabOrder = 2
+                object Panel43: TPanel
+                  Left = 0
+                  Top = 0
+                  Width = 137
+                  Height = 49
+                  Align = alLeft
+                  BevelOuter = bvNone
+                  TabOrder = 0
+                  ExplicitLeft = 137
+                  object cbSearchInvoicesSummaryOnly: TCheckBox
+                    AlignWithMargins = True
+                    Left = 3
+                    Top = 3
+                    Width = 131
+                    Height = 17
+                    Align = alTop
+                    Caption = 'Summary only'
+                    TabOrder = 0
+                    ExplicitLeft = 24
+                    ExplicitTop = 20
+                    ExplicitWidth = 97
+                  end
+                end
               end
             end
           end
@@ -367,7 +392,7 @@ object frmXERODemo: TfrmXERODemo
             object Panel17: TPanel
               Left = 0
               Top = 0
-              Width = 790
+              Width = 750
               Height = 49
               Align = alTop
               BevelOuter = bvNone
@@ -375,7 +400,7 @@ object frmXERODemo: TfrmXERODemo
               object Panel18: TPanel
                 Left = 149
                 Top = 0
-                Width = 641
+                Width = 601
                 Height = 49
                 Align = alClient
                 BevelOuter = bvNone
@@ -384,7 +409,7 @@ object frmXERODemo: TfrmXERODemo
                   AlignWithMargins = True
                   Left = 3
                   Top = 3
-                  Width = 635
+                  Width = 595
                   Height = 13
                   Align = alTop
                   Caption = 'URL Params'
@@ -394,7 +419,7 @@ object frmXERODemo: TfrmXERODemo
                   AlignWithMargins = True
                   Left = 3
                   Top = 22
-                  Width = 635
+                  Width = 595
                   Height = 21
                   Align = alTop
                   TabOrder = 0
@@ -434,7 +459,7 @@ object frmXERODemo: TfrmXERODemo
             object Panel20: TPanel
               Left = 0
               Top = 49
-              Width = 790
+              Width = 750
               Height = 49
               Align = alTop
               BevelOuter = bvNone
@@ -473,6 +498,155 @@ object frmXERODemo: TfrmXERODemo
               end
             end
           end
+          object tabPurchaseOrders: TTabSheet
+            Caption = 'Purchase Orders'
+            ImageIndex = 5
+            object Panel32: TPanel
+              Left = 0
+              Top = 0
+              Width = 750
+              Height = 49
+              Align = alTop
+              BevelOuter = bvNone
+              TabOrder = 0
+              object Panel33: TPanel
+                Left = 137
+                Top = 0
+                Width = 137
+                Height = 49
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 1
+                object Label16: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 131
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Purchase Order'
+                  ExplicitWidth = 75
+                end
+                object editPurchaseOrdersPurchaseOrderNumber: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 131
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+              object Panel34: TPanel
+                Left = 0
+                Top = 0
+                Width = 137
+                Height = 49
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 0
+                object Label17: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 131
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Purchase Order ID'
+                  ExplicitWidth = 89
+                end
+                object editPurchaseOrdersPurchaseOrderID: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 131
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+              object Panel35: TPanel
+                Left = 274
+                Top = 0
+                Width = 137
+                Height = 49
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 2
+              end
+            end
+          end
+          object tabTrackingCategory: TTabSheet
+            Caption = 'Tracking Category'
+            ImageIndex = 6
+            object Panel36: TPanel
+              Left = 0
+              Top = 0
+              Width = 750
+              Height = 49
+              Align = alTop
+              BevelOuter = bvNone
+              TabOrder = 0
+              object Panel38: TPanel
+                Left = 137
+                Top = 0
+                Width = 137
+                Height = 49
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 1
+                ExplicitLeft = 0
+                object Label19: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 131
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Tracking Category ID'
+                  ExplicitWidth = 102
+                end
+                object editTrackingCategoryID: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 131
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+              object Panel37: TPanel
+                Left = 0
+                Top = 0
+                Width = 137
+                Height = 49
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 0
+                ExplicitLeft = 4
+                object Label18: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 131
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Category Name'
+                  ExplicitWidth = 75
+                end
+                object editTrackingCategoryName: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 131
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+            end
+          end
         end
       end
     end
@@ -486,122 +660,296 @@ object frmXERODemo: TfrmXERODemo
         Height = 233
         Align = alTop
         TabOrder = 0
-        object Panel23: TPanel
-          AlignWithMargins = True
-          Left = 4
-          Top = 4
-          Width = 836
-          Height = 59
-          Align = alTop
-          BevelOuter = bvNone
-          TabOrder = 0
-          object btnStoreExecute: TButton
-            AlignWithMargins = True
-            Left = 758
-            Top = 3
-            Width = 75
-            Height = 53
-            Align = alRight
-            Caption = 'Execute'
-            TabOrder = 3
-            OnClick = btnStoreExecuteClick
-          end
-          object Panel24: TPanel
-            Left = 0
-            Top = 0
-            Width = 245
-            Height = 59
-            Align = alLeft
-            BevelOuter = bvNone
-            TabOrder = 0
-            object Label11: TLabel
-              AlignWithMargins = True
-              Left = 3
-              Top = 3
-              Width = 239
-              Height = 13
-              Align = alTop
-              Caption = 'Model'
-              ExplicitWidth = 28
-            end
-            object comboStoreModel: TComboBox
-              AlignWithMargins = True
-              Left = 3
-              Top = 22
-              Width = 239
-              Height = 21
-              Align = alTop
-              ItemIndex = 0
-              TabOrder = 0
-              Text = 'Accounts'
-              OnChange = comboStoreModelChange
-              Items.Strings = (
-                'Accounts'
-                'Contacts'
-                'Invoices')
-            end
-          end
-          object Panel25: TPanel
-            Left = 245
-            Top = 0
-            Width = 192
-            Height = 59
-            Align = alLeft
-            BevelOuter = bvNone
-            TabOrder = 1
-            object RadioGroupStoreMethod: TRadioGroup
-              AlignWithMargins = True
-              Left = 3
-              Top = 3
-              Width = 186
-              Height = 53
-              Align = alClient
-              Caption = 'Method'
-              Columns = 2
-              ItemIndex = 0
-              Items.Strings = (
-                'Post'
-                'Put')
-              TabOrder = 0
-            end
-          end
-          object Panel27: TPanel
-            Left = 437
-            Top = 0
-            Width = 318
-            Height = 59
-            Align = alClient
-            BevelOuter = bvNone
-            TabOrder = 2
-            object Label14: TLabel
-              AlignWithMargins = True
-              Left = 3
-              Top = 3
-              Width = 312
-              Height = 13
-              Align = alTop
-              Caption = 'GUID'
-              ExplicitWidth = 25
-            end
-            object editStoreGUID: TEdit
-              AlignWithMargins = True
-              Left = 3
-              Top = 22
-              Width = 312
-              Height = 21
-              Align = alTop
-              TabOrder = 0
-            end
-          end
-        end
-        object memoStoreJSON: TMemo
-          AlignWithMargins = True
-          Left = 4
-          Top = 69
-          Width = 836
-          Height = 160
+        object PageControlStore: TPageControl
+          Left = 1
+          Top = 1
+          Width = 842
+          Height = 231
+          ActivePage = tabStoreTrackingCategory
           Align = alClient
-          TabOrder = 1
+          MultiLine = True
+          TabOrder = 0
+          TabPosition = tpLeft
+          object tabStoreCustom: TTabSheet
+            Caption = 'Custom'
+            object memoStoreJSON: TMemo
+              AlignWithMargins = True
+              Left = 3
+              Top = 68
+              Width = 808
+              Height = 152
+              Align = alClient
+              TabOrder = 1
+            end
+            object Panel23: TPanel
+              AlignWithMargins = True
+              Left = 3
+              Top = 3
+              Width = 808
+              Height = 59
+              Align = alTop
+              BevelOuter = bvNone
+              TabOrder = 0
+              object btnStoreExecute: TButton
+                AlignWithMargins = True
+                Left = 730
+                Top = 3
+                Width = 75
+                Height = 53
+                Align = alRight
+                Caption = 'Execute'
+                TabOrder = 3
+                OnClick = btnStoreExecuteClick
+              end
+              object Panel24: TPanel
+                Left = 0
+                Top = 0
+                Width = 245
+                Height = 59
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 0
+                object Label11: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 239
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Model'
+                  ExplicitWidth = 28
+                end
+                object comboStoreModel: TComboBox
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 239
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                  Text = 'Accounts'
+                  OnChange = comboStoreModelChange
+                  Items.Strings = (
+                    'Accounts'
+                    'Contacts'
+                    'Invoices'
+                    'PurchaseOrders'
+                    'TrackingCategories'
+                    'Employees')
+                end
+              end
+              object Panel25: TPanel
+                Left = 245
+                Top = 0
+                Width = 192
+                Height = 59
+                Align = alLeft
+                BevelOuter = bvNone
+                TabOrder = 1
+                object RadioGroupStoreMethod: TRadioGroup
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 186
+                  Height = 53
+                  Align = alClient
+                  Caption = 'Method'
+                  Columns = 2
+                  ItemIndex = 0
+                  Items.Strings = (
+                    'Post'
+                    'Put')
+                  TabOrder = 0
+                end
+              end
+              object Panel27: TPanel
+                Left = 437
+                Top = 0
+                Width = 290
+                Height = 59
+                Align = alClient
+                BevelOuter = bvNone
+                TabOrder = 2
+                object Label14: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 284
+                  Height = 13
+                  Align = alTop
+                  Caption = 'GUID'
+                  ExplicitWidth = 25
+                end
+                object editStoreGUID: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 284
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+            end
+          end
+          object tabStoreTrackingCategory: TTabSheet
+            Caption = 'Tracking Category'
+            ImageIndex = 1
+            object Panel39: TPanel
+              Left = 185
+              Top = 0
+              Width = 185
+              Height = 223
+              Align = alLeft
+              BevelOuter = bvNone
+              TabOrder = 1
+              ExplicitLeft = 0
+              ExplicitTop = -1
+              object Label21: TLabel
+                AlignWithMargins = True
+                Left = 3
+                Top = 3
+                Width = 179
+                Height = 13
+                Align = alTop
+                Caption = 'Option'
+              end
+              object Panel40: TPanel
+                Left = 0
+                Top = 19
+                Width = 185
+                Height = 54
+                Align = alTop
+                BevelOuter = bvNone
+                TabOrder = 0
+                ExplicitLeft = 8
+                ExplicitTop = -5
+                object Label20: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 179
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Tracking Category ID'
+                  ExplicitWidth = 102
+                end
+                object editStoreTrackingOptionTrackingCategoryID: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 179
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                  ExplicitLeft = 28
+                  ExplicitTop = 40
+                  ExplicitWidth = 121
+                end
+              end
+              object Panel41: TPanel
+                Left = 0
+                Top = 73
+                Width = 185
+                Height = 54
+                Align = alTop
+                BevelOuter = bvNone
+                TabOrder = 1
+                ExplicitTop = 19
+                object Label22: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 179
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Option Name'
+                  ExplicitWidth = 62
+                end
+                object editStoreTrackingOptionName: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 179
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+              object btnStoreTrackingCategoryOption: TButton
+                AlignWithMargins = True
+                Left = 3
+                Top = 130
+                Width = 179
+                Height = 35
+                Align = alTop
+                Caption = 'Store'
+                TabOrder = 2
+                OnClick = btnStoreTrackingCategoryOptionClick
+              end
+            end
+            object Panel42: TPanel
+              Left = 0
+              Top = 0
+              Width = 185
+              Height = 223
+              Align = alLeft
+              BevelOuter = bvNone
+              TabOrder = 0
+              ExplicitLeft = 4
+              object Label23: TLabel
+                AlignWithMargins = True
+                Left = 3
+                Top = 3
+                Width = 179
+                Height = 13
+                Align = alTop
+                Caption = 'Category'
+                ExplicitWidth = 45
+              end
+              object Panel44: TPanel
+                Left = 0
+                Top = 19
+                Width = 185
+                Height = 54
+                Align = alTop
+                BevelOuter = bvNone
+                TabOrder = 0
+                ExplicitTop = 73
+                object Label25: TLabel
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 3
+                  Width = 179
+                  Height = 13
+                  Align = alTop
+                  Caption = 'Category Name'
+                  ExplicitWidth = 75
+                end
+                object editStoreTrackingCategoryName: TEdit
+                  AlignWithMargins = True
+                  Left = 3
+                  Top = 22
+                  Width = 179
+                  Height = 21
+                  Align = alTop
+                  TabOrder = 0
+                end
+              end
+              object btnStoreTrackingCategory: TButton
+                AlignWithMargins = True
+                Left = 3
+                Top = 76
+                Width = 179
+                Height = 35
+                Align = alTop
+                Caption = 'Store'
+                TabOrder = 1
+                OnClick = btnStoreTrackingCategoryClick
+                ExplicitTop = 130
+              end
+            end
+          end
         end
       end
       object Panel26: TPanel
@@ -645,7 +993,6 @@ object frmXERODemo: TfrmXERODemo
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 0
-        ExplicitTop = 211
         object GroupBoxJSONDatasetType: TGroupBox
           AlignWithMargins = True
           Left = 556
@@ -757,6 +1104,29 @@ object frmXERODemo: TfrmXERODemo
         Align = alClient
         TabOrder = 1
         WordWrap = False
+      end
+    end
+    object tabOptions: TTabSheet
+      Caption = 'Options'
+      ImageIndex = 5
+      object GroupBox1: TGroupBox
+        Left = 0
+        Top = 0
+        Width = 185
+        Height = 475
+        Align = alLeft
+        Caption = 'Options'
+        TabOrder = 0
+        object cbUnitDP4: TCheckBox
+          AlignWithMargins = True
+          Left = 5
+          Top = 18
+          Width = 175
+          Height = 17
+          Align = alTop
+          Caption = '4 decimal places'
+          TabOrder = 0
+        end
       end
     end
     object tabAbout: TTabSheet
@@ -1330,7 +1700,7 @@ object frmXERODemo: TfrmXERODemo
     end
   end
   object DataSourceDataset: TDataSource
-    Left = 36
-    Top = 444
+    Left = 104
+    Top = 356
   end
 end

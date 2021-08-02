@@ -63,7 +63,9 @@ implementation
 uses
   XERO.Utils, XERO.Response.Model,
   XERO.Contacts, XERO.Contacts.Dataset,
-  XERO.Invoices, XERO.Invoices.Dataset;
+  XERO.Invoices, XERO.Invoices.Dataset,
+  XERO.PurchaseOrders, XERO.PurchaseOrders.Dataset,
+  XERO.TrackingCategory, XERO.TrackingCategory.Dataset;
 
 { TXEROModelDataset }
 
@@ -269,6 +271,42 @@ begin
       FreeAndNil(LResponse);
     end;
   end;
+
+  if (Pos('"PurchaseOrders"', AJSON) > 0) and (not Assigned(Result)) then
+  begin
+    LResponse := TXEROPurchaseOrderResponse.Create;
+    try
+      LResponse.FromJSON(AJSON);
+
+      with Add<TXEROPurchaseOrdersDataset>(TXEROPurchaseOrdersDataset.Create) do
+      begin
+        StoreModelList((LResponse as TXEROPurchaseOrderResponse)
+          .PurchaseOrders);
+        Result := Dataset;
+      end;
+    finally
+      FreeAndNil(LResponse);
+    end;
+  end;
+
+  if (Pos('"TrackingCategories"', AJSON) > 0) and (not Assigned(Result)) then
+  begin
+    LResponse := TXEROTrackingCategoriesResponse.Create;
+    try
+      LResponse.FromJSON(AJSON);
+
+      with Add<TXEROTrackingCagegoryDataset>
+        (TXEROTrackingCagegoryDataset.Create) do
+      begin
+        StoreModelList((LResponse as TXEROTrackingCategoriesResponse)
+          .TrackingCategories);
+        Result := Dataset;
+      end;
+    finally
+      FreeAndNil(LResponse);
+    end;
+  end;
+
 end;
 
 procedure TXEROModelDatasets.Clear;
