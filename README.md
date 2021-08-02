@@ -3,17 +3,16 @@ XERO accounting API for Delphi
 
 [http://developer.xero.com/ ](http://developer.xero.com/ )
 
-Supports Delphi Sydney
+Supports Delphi Sydney 10.4.2
 
-* Older versions may work but this has not been tested.
+* Older versions may work but this has not been tested
+* RIO: Testing in RIO so far has not worked, OAuth2 authentication would fail, possibly in CodeChallenge generation 
 
 > This is a work in progress so design and requirements may change.
 
 # License #
 
 > Use this source code in open source or commercial software. You do not need to provide any credit. However please provide any fixes or enhancements to keep the component alive and helpful to everyone
-
-[Donations are appreciated](https://www.paypal.com/donate/?token=IS7CpOIQT6YEqUiUwICKTLsYdqFBDoFnTE894RdGA-vgWExlMo08xMSMr0SO-W64yDpkWW&country.x=AU&locale.x=AU)
 
 # Thanks #
 - Michael ([https://github.com/frogonwheels](https://github.com/frogonwheels))
@@ -22,6 +21,8 @@ Supports Delphi Sydney
 # ToDo #
 ----------
 * Access Token JWT decode (delphi-jose-jwt?)
+* Expand API modules for all areas of API
+* Option for URL to open in inbuilt Edge browser
 
 ----------
 #Components#
@@ -36,7 +37,7 @@ XEROAppDetails.ClientID := '4D914DECC5F34C4D882F76F0....';
 
 OAuth2 PKCE Authentication ([https://developer.xero.com/documentation/oauth2/pkce-flow])
 
-This component will launch the authentication URL and will start a http:localhost:{port} server for authentication respons
+This component will launch the authentication URL and will start a http:localhost:{port} server for authentication response
 
 By default the HTTP Server attempts to start on port 58985, 58986 or 58987 
 
@@ -83,6 +84,5 @@ Provide a simple interface for calling the XERO API
     	FreeAndNil(LAPI);
       end;
     end;
-
 
 
