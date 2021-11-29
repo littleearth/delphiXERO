@@ -368,7 +368,6 @@ object frmXERODemo: TfrmXERODemo
                   Align = alLeft
                   BevelOuter = bvNone
                   TabOrder = 0
-                  ExplicitLeft = 137
                   object cbSearchInvoicesSummaryOnly: TCheckBox
                     AlignWithMargins = True
                     Left = 3
@@ -378,9 +377,6 @@ object frmXERODemo: TfrmXERODemo
                     Align = alTop
                     Caption = 'Summary only'
                     TabOrder = 0
-                    ExplicitLeft = 24
-                    ExplicitTop = 20
-                    ExplicitWidth = 97
                   end
                 end
               end
@@ -595,7 +591,6 @@ object frmXERODemo: TfrmXERODemo
                 Align = alLeft
                 BevelOuter = bvNone
                 TabOrder = 1
-                ExplicitLeft = 0
                 object Label19: TLabel
                   AlignWithMargins = True
                   Left = 3
@@ -624,7 +619,6 @@ object frmXERODemo: TfrmXERODemo
                 Align = alLeft
                 BevelOuter = bvNone
                 TabOrder = 0
-                ExplicitLeft = 4
                 object Label18: TLabel
                   AlignWithMargins = True
                   Left = 3
@@ -665,7 +659,7 @@ object frmXERODemo: TfrmXERODemo
           Top = 1
           Width = 842
           Height = 231
-          ActivePage = tabStoreTrackingCategory
+          ActivePage = tabStoreCustom
           Align = alClient
           MultiLine = True
           TabOrder = 0
@@ -803,8 +797,6 @@ object frmXERODemo: TfrmXERODemo
               Align = alLeft
               BevelOuter = bvNone
               TabOrder = 1
-              ExplicitLeft = 0
-              ExplicitTop = -1
               object Label21: TLabel
                 AlignWithMargins = True
                 Left = 3
@@ -813,6 +805,7 @@ object frmXERODemo: TfrmXERODemo
                 Height = 13
                 Align = alTop
                 Caption = 'Option'
+                ExplicitWidth = 32
               end
               object Panel40: TPanel
                 Left = 0
@@ -822,8 +815,6 @@ object frmXERODemo: TfrmXERODemo
                 Align = alTop
                 BevelOuter = bvNone
                 TabOrder = 0
-                ExplicitLeft = 8
-                ExplicitTop = -5
                 object Label20: TLabel
                   AlignWithMargins = True
                   Left = 3
@@ -842,9 +833,6 @@ object frmXERODemo: TfrmXERODemo
                   Height = 21
                   Align = alTop
                   TabOrder = 0
-                  ExplicitLeft = 28
-                  ExplicitTop = 40
-                  ExplicitWidth = 121
                 end
               end
               object Panel41: TPanel
@@ -855,7 +843,6 @@ object frmXERODemo: TfrmXERODemo
                 Align = alTop
                 BevelOuter = bvNone
                 TabOrder = 1
-                ExplicitTop = 19
                 object Label22: TLabel
                   AlignWithMargins = True
                   Left = 3
@@ -896,7 +883,6 @@ object frmXERODemo: TfrmXERODemo
               Align = alLeft
               BevelOuter = bvNone
               TabOrder = 0
-              ExplicitLeft = 4
               object Label23: TLabel
                 AlignWithMargins = True
                 Left = 3
@@ -915,7 +901,6 @@ object frmXERODemo: TfrmXERODemo
                 Align = alTop
                 BevelOuter = bvNone
                 TabOrder = 0
-                ExplicitTop = 73
                 object Label25: TLabel
                   AlignWithMargins = True
                   Left = 3
@@ -946,7 +931,6 @@ object frmXERODemo: TfrmXERODemo
                 Caption = 'Store'
                 TabOrder = 1
                 OnClick = btnStoreTrackingCategoryClick
-                ExplicitTop = 130
               end
             end
           end

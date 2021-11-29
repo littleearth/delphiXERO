@@ -1,0 +1,60 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{D446A1F3-4212-4EA4-BE5F-ECD2489C695A}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="XEROAPI.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="XEROAPIDatasets.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="XEROAPIDesign.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="XEROAPI">
+        <MSBuild Projects="XEROAPI.dproj"/>
+    </Target>
+    <Target Name="XEROAPI:Clean">
+        <MSBuild Projects="XEROAPI.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="XEROAPI:Make">
+        <MSBuild Projects="XEROAPI.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="XEROAPIDatasets">
+        <MSBuild Projects="XEROAPIDatasets.dproj"/>
+    </Target>
+    <Target Name="XEROAPIDatasets:Clean">
+        <MSBuild Projects="XEROAPIDatasets.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="XEROAPIDatasets:Make">
+        <MSBuild Projects="XEROAPIDatasets.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="XEROAPIDesign">
+        <MSBuild Projects="XEROAPIDesign.dproj"/>
+    </Target>
+    <Target Name="XEROAPIDesign:Clean">
+        <MSBuild Projects="XEROAPIDesign.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="XEROAPIDesign:Make">
+        <MSBuild Projects="XEROAPIDesign.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="XEROAPI;XEROAPIDatasets;XEROAPIDesign"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="XEROAPI:Clean;XEROAPIDatasets:Clean;XEROAPIDesign:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="XEROAPI:Make;XEROAPIDatasets:Make;XEROAPIDesign:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

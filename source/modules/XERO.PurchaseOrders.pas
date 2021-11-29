@@ -35,6 +35,7 @@ type
       : TXEROPurchaseOrderResponse; overload;
     function Update(APurchaseOrder: TXMPurchaseOrder)
       : TXEROPurchaseOrderResponse; overload;
+    property summarizeErrors;
   end;
 
 implementation
@@ -69,6 +70,7 @@ var
 begin
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
+    summarizeErrors := false;
     Post<TXEROResponseJSON>(APurchaseOrders.AsJSONArray('PurchaseOrders'),
       LXEROResponseJSON);
     Result := LXEROResponseJSON.ToResponse<TXEROPurchaseOrderResponse>;
@@ -84,6 +86,7 @@ var
 begin
   LXEROResponseJSON := TXEROResponseJSON.Create(nil);
   try
+    summarizeErrors := true;
     Post<TXEROResponseJSON>(APurchaseOrder.AsJSON, LXEROResponseJSON);
     Result := LXEROResponseJSON.ToResponse<TXEROPurchaseOrderResponse>;
   finally

@@ -24,8 +24,10 @@ type
 
     function Find(AFilter: string = ''; AOrderBy: string = '';
       APage: Integer = 0; ALastModified: TDateTime = 0): string; reintroduce;
+    property summarizeErrors;
   published
     property BaseURL: string read FBaseURL write SetBaseURL;
+
   end;
 
 implementation

@@ -253,7 +253,9 @@ type
   TXEROAPIBase = class(TXEROHTTPClientBase)
   private
     FTenantId: string;
+    FsummarizeErrors: Boolean;
     procedure SetTenantId(const Value: string);
+    procedure SetsummarizeErrors(const Value: Boolean);
   protected
     function NormalisedURL(const AURL: string): string;
     function GetGUIDString: string;
@@ -314,7 +316,8 @@ type
     function Find<T: TXEROHTTPResponse>(AURL: string; AResponse: T;
       AFilter: string = ''; AOrderBy: string = ''; APage: integer = 0;
       ALastModified: TDateTime = 0; AParams: string = ''): Boolean;
-
+    property summarizeErrors: Boolean read FsummarizeErrors
+      write SetsummarizeErrors;
   public
     constructor Create(AOwner: TComponent); override;
     destructor Destroy; override;
@@ -640,6 +643,11 @@ begin
   StringToStream(AOutputStream, LError);
 end;
 
+procedure TXEROAPIBase.SetsummarizeErrors(const Value: Boolean);
+begin
+  FsummarizeErrors := Value;
+end;
+
 procedure TXEROAPIBase.ParamsToTStrings(AInput: String; AOutput: TStrings);
 var
   LParams: String;
@@ -672,6 +680,13 @@ begin
     LParams := LParams + 'unitdp=4';
   end;
 
+  if not summarizeErrors then
+  begin
+    if not IsEmptyString(LParams) then
+      LParams := LParams + #13#10;
+    LParams := LParams + 'summarizeErrors=false';
+  end;
+
   LParams := StringReplace(LParams, #13, '', [rfReplaceAll, rfIgnoreCase]);
   LParams := StringReplace(LParams, #10, '&', [rfReplaceAll, rfIgnoreCase]);
   if LParams.EndsWith('&') then
@@ -681,7 +696,7 @@ begin
 
   if not IsEmptyString(LParams) then
   begin
-    Result := Result + '?' + LParams;
+    Result := Result + GetURLSeperator(Result) + LParams;
   end;
 
 end;
@@ -1117,6 +1132,7 @@ end;
 constructor TXEROAPIBase.Create(AOwner: TComponent);
 begin
   inherited Create(AOwner);
+  FsummarizeErrors := true;
 end;
 
 destructor TXEROAPIBase.Destroy;
@@ -1210,14 +1226,14 @@ function TXEROAPI.Post<T>(ARequest: string; AResponse: T;
   AParams, AURLObjectID: string): Boolean;
 begin
   Result := inherited Post<T>(GetAPIURLObjectID(AURLObjectID), ARequest,
-    AResponse);
+    AResponse, AParams);
 end;
 
 function TXEROAPI.Put<T>(ARequest: string; AResponse: T;
   AParams, AURLObjectID: string): Boolean;
 begin
   Result := inherited Put<T>(GetAPIURLObjectID(AURLObjectID), ARequest,
-    AResponse);
+    AResponse, AParams);
 end;
 
 // TXEROAPI

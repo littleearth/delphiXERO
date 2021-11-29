@@ -32,6 +32,7 @@ type
     function Insert(AInvoice: TXMInvoice): TXEROInvoiceResponse; overload;
     function Update(AInvoices: TXMInvoices): TXEROInvoiceResponse; overload;
     function Update(AInvoice: TXMInvoice): TXEROInvoiceResponse; overload;
+    property summarizeErrors;
   end;
 
 implementation

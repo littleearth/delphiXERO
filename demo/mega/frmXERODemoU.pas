@@ -544,6 +544,7 @@ begin
   try
     LXEROAPI.XEROAppDetails := FXEROAppDetails;
     LXEROAPI.TenantId := GetTenant;
+    LXEROAPI.summarizeErrors := False;
     LXEROAPI.Post(AURL, AJSON, LJSON);
     memoStoreResponse.Text := LJSON;
   finally
@@ -560,6 +561,7 @@ begin
   try
     LXEROAPI.XEROAppDetails := FXEROAppDetails;
     LXEROAPI.TenantId := GetTenant;
+    LXEROAPI.summarizeErrors := False;
     LXEROAPI.Put(AURL, AJSON, LJSON);
     memoStoreResponse.Text := LJSON;
   finally
